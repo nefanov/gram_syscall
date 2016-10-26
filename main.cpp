@@ -52,10 +52,7 @@ int bfd(representor* r) {
 /* RULES */
 int rule_fork(representor* parent, unsigned int pid) {
     representor child;
-    child.p = pid;
-    child.s = parent->s;
-    child.g = parent->g;
-    child.children = NULL;
+    init(&child,pid,parent->s,parent->g);
     if(list_child_add(parent, child))
         return -1;
     return 0;
