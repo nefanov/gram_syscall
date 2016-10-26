@@ -16,7 +16,7 @@ void init(representor *r,unsigned int p,unsigned int s,unsigned int g) {
     r->p=p;
     r->s=s;
     r->g=g;
-    r->children = NULL;
+    
     return;
 }
 
