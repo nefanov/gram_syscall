@@ -1,12 +1,13 @@
 #include <iostream>
+#include <vector>
 
+using namespace std;
 /* representation structure */
 typedef struct repr {
     unsigned int p;
     unsigned int s;
     unsigned int g;
-
-    struct repr *children;
+    vector<struct repr> children;
 
 } representor;
 
@@ -20,17 +21,12 @@ void init(representor *r,unsigned int p,unsigned int s,unsigned int g) {
 }
 
 /* LIST ROUTINES */
-/* list_add routine adds given child to the tail of children list */
+/* list_child_add routine adds given child to the tail of children list */
 /* 0 - OK, -1 - ERR */
 
-int list_add(representor* children,representor* child) {
-    representor* iterator = children;
-    while (iterator)
-        iterator=iterator->children;
+int list_child_add(representor* parent,representor child) {
+    parent->children.push_back(child);
 
-    iterator=child;
-    if (!iterator)
-        return -1;
     return 0;
 }
 
@@ -38,34 +34,29 @@ int list_add(representor* children,representor* child) {
 int dfs(representor* r) {
     static int nodes;
     nodes++;
-    representor* iterator = r->children;
-    while (iterator) {
-        nodes++;
-        dfs(iterator);
-        iterator=iterator->children;
+    for(vector<struct repr>::iterator it = r->children.begin() ; it != r->children.end(); ++it) {
+        dfs((representor*)*it);
+
     }
+
     return nodes;
 }
 
 int bfd(representor* r) {
     static int nodes;
     nodes++;
-    representor* iterator = r->children;
-    while (iterator) {
-        nodes++;
-        iterator-iterator->children;
-    }
+
     return nodes;
 }
 
 /* RULES */
-int rule_fork(representor *parent, unsigned int pid) {
+int rule_fork(representor* parent, unsigned int pid) {
     representor child;
     child.p = pid;
     child.s = parent->s;
     child.g = parent->g;
     child.children = NULL;
-    if(list_add(parent->children, &child))
+    if(list_child_add(parent, child))
         return -1;
     return 0;
 }
