@@ -1,5 +1,7 @@
 #include <iostream>
 #include <vector>
+#include <sstream>
+#include <cstdlib>
 
 using namespace std;
 /* representation structure */
@@ -16,7 +18,7 @@ void init(representor *r,unsigned int p,unsigned int s,unsigned int g) {
     r->p=p;
     r->s=s;
     r->g=g;
-    
+
     return;
 }
 
@@ -30,16 +32,42 @@ int list_child_add(representor* parent,representor child) {
     return 0;
 }
 
-/* GRAPH ROUTINES */
-int dfs(representor* r) {
+/* WORKERS */
+
+/* worker: reconstruct the string */
+void worker_reconstruct(representor* r,void* par) {
+    string *s=(string*)par;
+    s->append("|");
+    s->append(std::to_string(r->p));
+    s->append(std::to_string(r->s));
+    s->append(std::to_string(r->g));
+    s->append("[");
+}
+
+void worker_reconstruct_finalizer(representor* r, void* par) {
+    string *s=(string*)par;
+    s->append("]");
+}
+
+/* worker: count the nodes
+int worker_count() {
     static int nodes;
     nodes++;
+    return nodes;
+}
+*/
+/* /WORKERS */
+
+/* GRAPH ROUTINES */
+void* dfs(representor* r, int (*work)(representor*,void*), void *work_finalizer(representor*,void*),void *ret) {
+    (*work)(r,ret);
     for(vector<struct repr>::iterator it = r->children.begin() ; it != r->children.end(); ++it) {
-        dfs((representor*)*it);
+        dfs(&(*it),work,work_finalizer,ret);
 
     }
+    (*work_finalizer)(r,ret);
 
-    return nodes;
+    return 0;
 }
 
 int bfd(representor* r) {
