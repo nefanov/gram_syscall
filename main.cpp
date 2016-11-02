@@ -145,7 +145,7 @@ int rule_setpgid(representor *parent,unsigned int pgid,representor *process) {
     return 0;
 }
 
-void exit() {
+void exit(representor* r) {
     return;
 }
 
