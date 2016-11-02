@@ -56,6 +56,14 @@ void worker_pgid_lookup(representor* r, void *par) {
         *(int*)par=-1;
     return;
 }
+/* work: lookup process with given group (arg0) and return its sid(arg1) */
+void worker_lookup_sid_by_pgid(representor* r, void *par) {
+    int* args=(int*)par;
+    if (r->g==args[0])
+        args[1]=r->s;
+
+    return;
+}
 
 /* stub worker: nothing to do there:) */
 void worker_stub(representor* r, void *par) {
@@ -113,8 +121,28 @@ int rule_setsid(representor *parent) {
     }
     return 0;
 }
-void rule_setpgid(representor *parent,unsigned int pgid) {
-    return;
+int rule_setpgid(representor *parent,unsigned int pgid,representor *process) {
+    if (!pgid) {
+        process->g = parent->p;
+        return 0;
+    }
+
+    if (process->s!=parent->s) //sessions doesn't match
+        return -1;
+    if (process->p==process->s) //process is a session leader
+        return -1;
+
+    if (process->p==0)
+        parent->g=pgid;
+/*Доп. проверка: найти процесс с pgid Этой группы. Сессии не совпадают - ошибка*/
+    int* lookup=(int*)malloc(2*sizeof(int));
+    lookup[0] = pgid;
+    lookup[1] = -1;
+    dfs(parent, &worker_lookup_sid_by_pgid,&worker_stub,lookup);
+    if (lookup[1]!=parent->s)
+        return -1;
+
+    return 0;
 }
 
 void exit() {
