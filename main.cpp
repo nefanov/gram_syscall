@@ -2,6 +2,8 @@
 #include <vector>
 #include <sstream>
 #include <cstdlib>
+#include <string>
+#include <cstdio>
 
 using namespace std;
 /* representation structure */
@@ -28,9 +30,55 @@ void init(representor *r,unsigned int p,unsigned int s,unsigned int g) {
 
 int list_child_add(representor* parent,representor child) {
     parent->children.push_back(child);
-
+    
     return 0;
 }
+/* /LIST_ROUTINES */
+/* STRINGERS: conversions from strings to smth */
+
+/* stringer_graph_construct: string -> graph representor* 
+ * returns:  0 - OK
+ *          -1 - parsing error */
+//int construct(stringstream* ss, representor* r);
+
+int construct(stringstream* ss, vector<struct repr> vr) {
+    char c;
+    int res;
+    representor r;
+    while(!(*ss).eof()) {
+        *ss >> c;
+        if (c!='|') {
+            if (c==']') {
+            /*
+            (*ss).putback(c);
+             */
+                return 0;
+            }
+            return -1;
+        }
+    
+        *ss >> r.p >> r.g >> r.s;
+        *ss >> c >> c;
+    
+        vr.push_back(r); //added to current vector instance
+        if (c!='[') {
+            vr.erase(vr.end()); //rewert the previous changes
+            return -1;
+        }
+    
+        *ss >> c;
+        if (c == ']')
+            continue;
+            
+        (*ss).putback(c);
+        representor child;
+        res = construct(ss,vr[0].children);
+    }
+    return 0;
+}
+
+
+/* /STRINGERS */
 
 /* WORKERS */
 
@@ -39,9 +87,12 @@ void worker_reconstruct(representor* r,void *par) {
     string *s=(string*)par;
     s->append("|");
     s->append(std::to_string(r->p));
+    s->append(" ");
     s->append(std::to_string(r->s));
+    s->append(" ");
     s->append(std::to_string(r->g));
-    s->append("[");
+//  s->append(" ");
+    s->append(";[");
 }
 
 void worker_reconstruct_finalizer(representor* r, void *par) {
@@ -134,6 +185,7 @@ int rule_setpgid(representor *parent,unsigned int pgid,representor *process) {
 
     if (process->p==0)
         parent->g=pgid;
+    
 /*Доп. проверка: найти процесс с pgid Этой группы. Сессии не совпадают - ошибка*/
     int* lookup=(int*)malloc(2*sizeof(int));
     lookup[0] = pgid;
