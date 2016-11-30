@@ -5,6 +5,7 @@
 #include <string>
 #include <cstdio>
 #include <queue>
+#include <climits>
 
 using namespace std;
 /* representation structure */
@@ -18,6 +19,8 @@ typedef struct repr {
 } representor;
 
 unsigned int ns_last_pid; //last pid representation (as in /sys/kernel/ns_last_pid file from Linux 3.3.*)
+
+representor init_process; // "init" process with first pid
 
 /* init the new process without children */
 void init(representor *r,unsigned int p,unsigned int s,unsigned int g) {
@@ -34,10 +37,12 @@ void init(representor *r,unsigned int p,unsigned int s,unsigned int g) {
 
 int list_child_add(representor* parent,representor child) {
     parent->children.push_back(child);
-    
+    parent->children[parent->children.size()-1].parent = parent;
     return 0;
 }
+
 /* /LIST_ROUTINES */
+
 /* STRINGERS: conversions from strings to smth */
 
 /* stringer_graph_construct: string -> graph representor* 
@@ -109,14 +114,24 @@ void worker_reconstruct_finalizer(representor* r, void *par) {
 void worker_pgid_lookup(representor* r, void *par) {
     if (*(int*)par==r->g)
         *(int*)par=-1;
+    
     return;
 }
 /* work: lookup process with given group (arg0) and return its sid(arg1) */
-void worker_lookup_sid_by_pgid(representor* r, void *par) {
+void worker_lookup_sid_by_pgid(representor *r, void *par) {
     int* args=(int*)par;
     if (r->g==args[0])
         args[1]=r->s;
 
+    return;
+}
+
+/* worker: search for process with a given pid and return pid in *par if there are no one,
+ * else return -1 */
+void worker_lookup_pid(representor *r, void *par) {
+    if (*(int*)par==r->p)
+        *(int*)par=-1;
+    
     return;
 }
 
@@ -157,12 +172,29 @@ int bfd(representor* r) {
     return nodes;
 }
 
+int lookup_pid(representor *r, unsigned int pid) {
+    int exists = pid;
+    dfs(r, worker_lookup_pid, worker_stub, &exists);
+    if (exists==-1)
+        return 0;
+    return -1;
+}
+
 /* RULES */
 int rule_fork(representor* parent, unsigned int pid) {
     representor child;
+    int pid_cnt = 0;
     init(&child,pid,parent->s,parent->g);
+    while (lookup_pid(&init_process, pid)) {
+        ns_last_pid++;
+        pid_cnt++;
+        if (pid_cnt == UINT_MAX)
+            return -2; //no new process can be added!
+    }
+    
     if(list_child_add(parent, child))
         return -1;
+    
     return 0;
 }
 
@@ -222,7 +254,18 @@ vector <void*> ftable;
 /* /RULES */
 
 /* SET ROUTINES */
-representor* bruteforce(representor*);
+representor* bruteforce_fork(representor* r)
+{
+    representor copy = *r; //get the safe copy
+    for (int i=1;i<UINT_MAX;i++) {
+        if(!rule_fork(&copy, ns_last_pid)) {
+            ns_last_pid++;
+            
+        }
+    }
+    
+    return r;
+}
 
 representor* optimizer(representor*);
 
