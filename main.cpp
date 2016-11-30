@@ -4,16 +4,20 @@
 #include <cstdlib>
 #include <string>
 #include <cstdio>
+#include <queue>
 
 using namespace std;
 /* representation structure */
 typedef struct repr {
+    struct repr *parent; //now is redundant
     unsigned int p;
     unsigned int s;
     unsigned int g;
     vector<struct repr> children;
 
 } representor;
+
+unsigned int ns_last_pid; //last pid representation (as in /sys/kernel/ns_last_pid file from Linux 3.3.*)
 
 /* init the new process without children */
 void init(representor *r,unsigned int p,unsigned int s,unsigned int g) {
@@ -82,7 +86,7 @@ int construct(stringstream* ss, vector<struct repr> vr) {
 
 /* WORKERS */
 
-/* worker: reconstruct the string */
+/* worker: reconstruct the string from representor's node*/
 void worker_reconstruct(representor* r,void *par) {
     string *s=(string*)par;
     s->append("|");
@@ -130,7 +134,9 @@ int worker_count() {
 /* /WORKERS */
 
 /* GRAPH ROUTINES */
-int dfs(representor* r, void (*work)(representor*,void*), void (*work_finalizer)(representor*,void*),void *ret) {
+
+/* We need DFS at least for string-from-tree-nodes recursive generation */
+int dfs(representor* r, void (*work)(representor*, void*), void (*work_finalizer)(representor*, void*),void *ret) {
     (*work)(r,ret);
     for(vector<struct repr>::iterator it = r->children.begin() ; it != r->children.end(); ++it) {
         dfs(&(*it),work,work_finalizer,ret);
@@ -144,7 +150,10 @@ int dfs(representor* r, void (*work)(representor*,void*), void (*work_finalizer)
 int bfd(representor* r) {
     static int nodes;
     nodes++;
-
+    
+    queue <representor*> q;
+    q.push(r);
+    
     return nodes;
 }
 
@@ -204,6 +213,11 @@ void exit(representor* r) {
 int abstract_rule(representor *parent,int argc,char** argv) {
     return 0;
 }
+
+vector <void*> ftable;
+
+
+
 
 /* /RULES */
 
