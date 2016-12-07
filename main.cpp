@@ -5,7 +5,12 @@
 #include <string>
 #include <cstdio>
 #include <queue>
+#include <set>
 #include <climits>
+#include "tree.hh"
+
+#define LOG_ON 1
+#define LOG_OFF 0
 
 using namespace std;
 /* representation structure */
@@ -18,9 +23,17 @@ typedef struct repr {
 
 } representor;
 
+/* state structure */
+typedef struct {
+    string str;
+    string last_syscall;
+} state;
+
 unsigned int ns_last_pid; //last pid representation (as in /sys/kernel/ns_last_pid file from Linux 3.3.*)
 
 representor init_process; // "init" process with first pid
+
+set <unsigned int> active_pids; //set of currently active pids
 
 /* init the new process without children */
 void init(representor *r,unsigned int p,unsigned int s,unsigned int g) {
@@ -38,6 +51,7 @@ void init(representor *r,unsigned int p,unsigned int s,unsigned int g) {
 int list_child_add(representor* parent,representor child) {
     parent->children.push_back(child);
     parent->children[parent->children.size()-1].parent = parent;
+    active_pids.insert(child.p);
     return 0;
 }
 
@@ -172,6 +186,12 @@ int bfd(representor* r) {
     return nodes;
 }
 
+string construct(representor *r) {
+    string ret_val;
+    dfs(r, &worker_reconstruct, &worker_reconstruct_finalizer,&ret_val);
+    return ret_val;
+}
+
 int lookup_pid(representor *r, unsigned int pid) {
     int exists = pid;
     dfs(r, worker_lookup_pid, worker_stub, &exists);
@@ -180,11 +200,20 @@ int lookup_pid(representor *r, unsigned int pid) {
     return -1;
 }
 
+/* fast lookup pid storage for optimization */
+int fast_lookup_pid(unsigned int pid) {
+    if(active_pids.find(pid) != active_pids.end())
+        return 0;
+        
+    return -1;
+}
+
 /* RULES */
 int rule_fork(representor* parent, unsigned int pid) {
     representor child;
     int pid_cnt = 0;
     init(&child,pid,parent->s,parent->g);
+    /*inc until pid is active */
     while (lookup_pid(&init_process, pid)) {
         ns_last_pid++;
         pid_cnt++;
@@ -242,7 +271,7 @@ void exit(representor* r) {
     return;
 }
 
-int abstract_rule(representor *parent,int argc,char** argv) {
+int abstract_rule(representor *parent,int argc,char **argv) {
     return 0;
 }
 
@@ -253,10 +282,31 @@ vector <void*> ftable;
 
 /* /RULES */
 
+representor* bruteforce_fork(representor *r, tree<state> tr, tree<state>::iterator);
+
+/* GENERATOR ROUTINES */
+
+
+
+tree<state> run_fork_bruteforce(representor *r) {
+    tree<state> tr;
+    /*
+    tree<state>::iterator top;
+    top = tr.begin();
+    */
+    state root;
+    root.str = construct(r);
+    root.last_syscall="";
+    tr.insert(tr.begin(), root);
+    bruteforce_fork(r, tr, tr.begin());
+    
+    return tr;
+}
 /* SET ROUTINES */
-representor* bruteforce_fork(representor* r)
+representor* bruteforce_fork(representor *r, tree<state> tr, tree<state>::iterator)
 {
     representor copy = *r; //get the safe copy
+    
     for (int i=1;i<UINT_MAX;i++) {
         if(!rule_fork(&copy, ns_last_pid)) {
             ns_last_pid++;
