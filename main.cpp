@@ -192,12 +192,16 @@ string construct(representor *r) {
     return ret_val;
 }
 
+/* lookup the given pid in the process tree from representor *r
+    returns -1 if pid exists else 0;
+ */
 int lookup_pid(representor *r, unsigned int pid) {
     int exists = pid;
     dfs(r, worker_lookup_pid, worker_stub, &exists);
-    if (exists==-1)
-        return 0;
-    return -1;
+    if (exists==-1) //exists
+        return 1;
+    
+    return 0;
 }
 
 /* fast lookup pid storage for optimization */
@@ -302,7 +306,9 @@ tree<state> run_fork_bruteforce(representor *r) {
     
     return tr;
 }
+
 /* SET ROUTINES */
+
 representor* bruteforce_fork(representor *r, tree<state> tr, tree<state>::iterator)
 {
     representor copy = *r; //get the safe copy
