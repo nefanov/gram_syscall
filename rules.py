@@ -4,3 +4,10 @@ class representor:
 		self.g=g
 		self.s=s
 		self.children=children
+		
+	def fork(self):
+		#to do: add check
+		self.children.append(representor(pid, self.g, self.s, []))
+		pid++
+		
+	
