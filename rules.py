@@ -8,6 +8,7 @@ class representor:
 	def fork(self):
 		#to do: add check
 		self.children.append(representor(pid, self.g, self.s, []))
-		pid++
+		pid = pid + 1
+		return (pid - 1)
 		
 	
