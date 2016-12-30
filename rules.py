@@ -33,15 +33,17 @@ class representor:
 
 def pid_checker(r,pid):
     res=0
-    routines.bfs(r,routines.worker_check_field,routines.empty_finalizer,['p',pid],res)
+    routines.dfs(r,routines.worker_check_field,routines.worker_empty,['p',pid],res)
     return res
+
 
 def sid_checker(r,sid):
     res = 0
-    routines.bfs(r,routines.worker_check_field,routines.empty_finalizer,['s',sid],res)
+    routines.dfs(r,routines.worker_check_field,routines.worker_empty,['s',sid],res)
     return res
+
 
 def pgid_checker(r,pgid):
     res = 0
-    routines.bfs(r,routines.worker_check_field,routines.empty_finalizer,['g',pgid],res)
+    routines.dfs(r,routines.worker_check_field,routines.worker_empty,['g',pgid],res)
     return res
