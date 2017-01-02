@@ -2,18 +2,19 @@ import routines
 
 
 class representor:
-    def __init__(self, p,g,s, children):
+    def __init__(self, parent, p, g, s, children):
+        self.parent = parent
         self.p = p
         self.g = g
         self.s = s
         self.children = children
-        return self
+        return
 
     def fork(self, ns_last_pid):
         while pid_checker(self, ns_last_pid):
             ns_last_pid += 1
 
-        self.children.append(representor(ns_last_pid, self.g, self.s, []))
+        self.children.append(representor(self, ns_last_pid, self.g, self.s, []))
 
         ns_last_pid += 1
         return ns_last_pid

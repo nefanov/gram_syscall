@@ -1,3 +1,6 @@
+import re
+import rules
+
 # workers
 def worker_check_field(r, argv, ret=0):
     if (argv[0] == 'p'):
@@ -15,6 +18,14 @@ def worker_check_field(r, argv, ret=0):
     return
 
 
+def worker_print(r, argv, ret=0):
+    print r, ":"
+    if not r:
+        return
+    print r.p,r.g,r.s
+    return
+
+
 def worker_empty(r, argv, ret):
     return
 
@@ -25,14 +36,44 @@ def worker_get_sid_by_pgid(r, argv, ret):
 
 
 def reconstruct_finalizer(r, argv, ret):
-    ret = argv+"]"
+    ret = argv + "]"
     return
+
+
+def fill_lvl(r, lst):
+    r_lvl = r
+    for num, line in enumerate(lst):
+        print line
+        if line == '':
+            continue
+
+        tmp_s = re.findall('\d+', line)
+        tmp_v = rules.representor(r_lvl, tmp_s[0], tmp_s[1], tmp_s[2], [])
+        r_lvl.children.append(tmp_v)
+
+        if (line[-1] == '['):
+            r_lvl = r_lvl.children[-1]
+        elif (line[-1] == line[-2] == ']'):
+            r_lvl = r_lvl.parent
+
+    return r
+
+# extensive string split by cStringIO routines
+def split_extensive(ss, r):
+    # type: (string, representor) -> representor
+    fill_lvl(r, ss.split('|'))
+    return r
+
+
+def construct(ss, r):
+    return split_extensive(ss, r)
 
 
 #
 # worker_reconstruct: reconstruct the string from sub-tree representation
 def worker_reconstruct(r, argv, ret):
-    ret = argv + "|" + str(r.p)+" " + str(r.s) + " " + str(r.g) + ";["
+    ret = argv + "|" + str(r.p) + " " + str(r.s) + " " + str(r.g) + ";["
+
 
 # process_graph_routines
 
@@ -44,12 +85,13 @@ def dfs(r, func, func_finalizer, argv, ret=0):
 
     func(r, argv, ret)
     func_finalizer(r, argv, ret)
+
     for node in r.children:
         dfs(node, func, func_finalizer, argv, ret)
     return
 
 
 def construct(r):
-    res=""
+    res = ""
     dfs(r, worker_reconstruct, worker_empty, res, res)
     return res
