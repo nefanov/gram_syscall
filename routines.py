@@ -18,6 +18,13 @@ def worker_check_field(r, argv, ret=0):
     return
 
 
+# collects all the nodes to the list
+def worker_list_nodes(r, argv, ret):
+    ret.append(None)
+    ret[-1] = r
+    return
+
+
 def worker_print(r, argv, ret=0):
     print r, ":"
     if not r:
@@ -95,3 +102,4 @@ def construct(r):
     res = ""
     dfs(r, worker_reconstruct, worker_empty, res, res)
     return res
+
