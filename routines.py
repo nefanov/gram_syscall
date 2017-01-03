@@ -1,5 +1,6 @@
 import re
 import rules
+from anytree import Node, RenderTree
 
 # workers
 def worker_check_field(r, argv, ret=0):
@@ -102,4 +103,6 @@ def construct(r):
     res = ""
     dfs(r, worker_reconstruct, worker_empty, res, res)
     return res
+
+
 
