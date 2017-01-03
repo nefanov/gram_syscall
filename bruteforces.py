@@ -10,7 +10,7 @@ global ns_last_pid
 # log_tree is n-are tree for string notation logging (see
 #  'routines.construct' function) .
 
-def perm(r, lst, is_log=0, log_tree=None, max_proc_num=2 ** 16):
+def perm(r, lst, is_log=0, log_tree=None, max_proc_num=rules.PROC_LIMIT):
     if len(lst) >= max_proc_num:
         return
 
