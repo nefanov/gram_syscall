@@ -3,6 +3,8 @@ import rules
 from anytree import Node, RenderTree
 
 # workers
+
+
 def worker_check_field(r, argv, ret=0):
     if (argv[0] == 'p'):
         if (r.p == argv[1]):
@@ -86,7 +88,7 @@ def worker_reconstruct(r, argv, ret):
 # process_graph_routines
 
 
-def dfs(r, func, func_finalizer, argv, ret=0):
+def dfs(r, func, func_finalizer, argv, ret):
     # type: (representor, worker_func, finalizer, args, retvals) -> void
     if not r:
         return
@@ -103,6 +105,8 @@ def construct(r):
     res = ""
     dfs(r, worker_reconstruct, worker_empty, res, res)
     return res
+
+
 
 
 

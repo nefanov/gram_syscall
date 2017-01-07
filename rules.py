@@ -22,8 +22,14 @@ class representor:
         ns_last_pid % PROC_LIMIT
         return ns_last_pid
 
-    def setsid(self,pid,sid):
-        pass
+    def setsid(self):
+        if self.p == self.g:
+            return -1
+        if pgid_checker(self, self.p):
+            return -1
+
+        self.s = self.g = self.p
+        return 0
 
     def setpgid(self,pid,pgid):
         pass
@@ -35,19 +41,19 @@ class representor:
         pass
 
 
-def pid_checker(r,pid):
+def pid_checker(r, pid):
     res=0
-    routines.dfs(r,routines.worker_check_field,routines.worker_empty,['p',pid],res)
+    routines.dfs(r, routines.worker_check_field, routines.worker_empty, ['p', pid], res)
     return res
 
 
-def sid_checker(r,sid):
+def sid_checker(r, sid):
     res = 0
-    routines.dfs(r,routines.worker_check_field,routines.worker_empty,['s',sid],res)
+    routines.dfs(r, routines.worker_check_field, routines.worker_empty, ['s', sid], res)
     return res
 
 
-def pgid_checker(r,pgid):
+def pgid_checker(r, pgid):
     res = 0
-    routines.dfs(r,routines.worker_check_field,routines.worker_empty,['g',pgid],res)
+    routines.dfs(r, routines.worker_check_field, routines.worker_empty, ['g', pgid], res)
     return res
