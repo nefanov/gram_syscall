@@ -5,18 +5,20 @@ from anytree import Node, RenderTree
 # workers
 
 
-def worker_check_field(r, argv, ret=0):
-    if (argv[0] == 'p'):
-        if (r.p == argv[1]):
-            ret = 1
+def worker_check_field(r, argv, ret):
+    if argv[0] == 'p':
+        if r.p == argv[1]:
+            ret = r
 
-    if (argv[0] == 'g'):
-        if (r.g == argv[1]):
-            ret = 1
+    if argv[0] == 'g':
+        if r.g == argv[1]:
+            ret.append(None)
+            ret[-1] = r
 
-    if (argv[0] == 's'):
-        if (r.s == argv[1]):
-            ret = 1
+    if argv[0] == 's':
+        if r.s == argv[1]:
+            ret.append(None)
+            ret[-1] = r
 
     return
 
@@ -32,7 +34,7 @@ def worker_print(r, argv, ret=0):
     print r, ":"
     if not r:
         return
-    print r.p,r.g,r.s
+    print r.p, r.g, r.s
     return
 
 

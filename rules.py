@@ -31,8 +31,20 @@ class representor:
         self.s = self.g = self.p
         return 0
 
-    def setpgid(self,pid,pgid):
-        pass
+    def setpgid(self, process, pgid):
+        if pgid == 0:
+            process.g = self.p
+            return 0
+
+        if process.s != self.s:
+            return -1
+        if process.s != self.s: # ?????????
+            return -1
+
+        if process.p == 0:
+            self.g = pgid
+
+        return 0
 
     def exit1(self):
         pass
@@ -41,19 +53,22 @@ class representor:
         pass
 
 
+# returns process with given pid
 def pid_checker(r, pid):
-    res=0
+    res = None
     routines.dfs(r, routines.worker_check_field, routines.worker_empty, ['p', pid], res)
     return res
 
 
+# returns list of processes in the given session
 def sid_checker(r, sid):
-    res = 0
+    res = None
     routines.dfs(r, routines.worker_check_field, routines.worker_empty, ['s', sid], res)
     return res
 
 
+# returns list of processes of the given group
 def pgid_checker(r, pgid):
-    res = 0
+    res = None
     routines.dfs(r, routines.worker_check_field, routines.worker_empty, ['g', pgid], res)
     return res
