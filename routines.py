@@ -1,6 +1,22 @@
 import re
 import rules
 from anytree import Node, RenderTree
+import cPickle as pickle
+
+# serialization I/O
+
+
+def pkl_write(obj, f_name):
+    out = open(f_name, 'wb')
+    pickle.dump(obj, out, 2)
+    out.close()
+
+
+def pkl_read(obj, f_name):
+    inp = open(f_name, 'rb')
+    obj = pickle.load(inp)
+    inp.close()
+    return obj
 
 # workers
 

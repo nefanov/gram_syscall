@@ -2,6 +2,13 @@ import routines
 import rules
 
 
+def print_log_iteration(iteration=0, power_limit=0, state_notation=""):
+    if iteration:
+        print "iteration: " + iteration
+    if power_limit:
+        print "power_limit: " + power_limit
+    print state_notation
+
 # in general, transform functions runs dfs, but in is unefficient method
 
 

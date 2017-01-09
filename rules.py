@@ -31,18 +31,31 @@ class representor:
         self.s = self.g = self.p
         return 0
 
-    def setpgid(self, process, pgid):
+    def setpgid(self, pid=0, pgid=0, root=None):
+        if pid == 0:
+            if pgid == 0:
+                self.g = self.p
+            else:
+                self.g = pgid
+
+            return 0
+
+        if not root:  # there are no root of process tree
+            return -1
+
+        process = pid_checker(root, pid)
+        if not process:
+            return -1
+
         if pgid == 0:
             process.g = self.p
             return 0
 
         if process.s != self.s:
             return -1
+
         if process.s != self.s: # ?????????
             return -1
-
-        if process.p == 0:
-            self.g = pgid
 
         return 0
 
