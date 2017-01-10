@@ -12,14 +12,14 @@ class representor:
         return
 
     def fork(self, ns_last_pid):
-        while pid_checker(self, ns_last_pid):
+        while pid_checker(self, ns_last_pid)[0]:
             ns_last_pid += 1
             ns_last_pid % PROC_LIMIT
 
         self.children.append(representor(self, ns_last_pid, self.g, self.s, []))
-
+        print ns_last_pid
         ns_last_pid += 1
-        ns_last_pid % PROC_LIMIT
+        ns_last_pid %= PROC_LIMIT
         return ns_last_pid
 
     def setsid(self):
@@ -68,20 +68,20 @@ class representor:
 
 # returns process with given pid
 def pid_checker(r, pid):
-    res = None
+    res = [None]
     routines.dfs(r, routines.worker_check_field, routines.worker_empty, ['p', pid], res)
     return res
 
 
 # returns list of processes in the given session
 def sid_checker(r, sid):
-    res = None
+    res = [None]
     routines.dfs(r, routines.worker_check_field, routines.worker_empty, ['s', sid], res)
     return res
 
 
 # returns list of processes of the given group
 def pgid_checker(r, pgid):
-    res = None
+    res = [None]
     routines.dfs(r, routines.worker_check_field, routines.worker_empty, ['g', pgid], res)
     return res

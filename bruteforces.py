@@ -26,23 +26,40 @@ def fork_lst_transform(argv):
 # log_tree is n-are tree for string notation logging (see
 #  'routines.construct' function) .
 
-def perm(r, lst, rule, argv, func_lst_transform=None, is_log=0, log_tree=None, max_proc_num=rules.PROC_LIMIT):
+def perm(r, lst, rls, argv, func_lst_transform=[None], is_log=0, log_tree=None, max_proc_num=rules.PROC_LIMIT):
     if len(lst) >= max_proc_num:
         return
 
     for num, node in enumerate(lst):
-        argv_ret = node.rule(argv)
-        if is_log:
-            log_tree = routines.Node([rule.__name__, '('+','.join([str(x) for x in lst])+')', routines.construct(r)], parent=log_tree)
+        for rn, rule in enumerate(rls):
+            print rn, rule, getattr(node, rule)
+            argv_ret = getattr(node, rule)(*argv[rn])
+            # log current state into the log_tree
+            if is_log:
+                log_tree = routines.Node([rule, '('+','.join([str(x) for x in argv[rn]])+')', routines.construct(r)], parent=log_tree)
+                print "node #" + str(num+1) + " of " + str(len(lst)) + " ; "
+            new_lst = list(lst)
+            try:
+                if func_lst_transform[rn]:
+                    new_lst = func_lst_transform[rn]([num, lst])
+            except IndexError:
+                if func_lst_transform[-1]:
+                    new_lst = func_lst_transform[-1]([num, lst])
 
-        new_lst = func_lst_transform([num, lst])
-        perm(r, new_lst, rule, argv_ret, func_lst_transform, is_log, log_tree, max_proc_num)
+            perm(r, new_lst, rule, argv_ret, func_lst_transform, is_log, log_tree, max_proc_num)
 
     return
 
 
 def brute_fork(r=rules.representor(None, 1, 1, 1, []), ns_last_pid=1, is_log=1, log_tree=routines.Node(["", "", "|1 1 1 ;[]"])):
     lst = []
-    routines.dfs(r, routines.worker_list_nodes(), routines.worker_empty, [], lst)
-    perm(r, lst, rules.fork, ns_last_pid, fork_lst_transform, 1, log_tree)
+    routines.dfs(r, routines.worker_list_nodes, routines.worker_empty, [], lst)
+    perm(r, lst, ["fork"], [[ns_last_pid]], [fork_lst_transform], is_log, log_tree)
+
+    routines.log_output(log_tree, "log_tree.txt")
+    routines.pkl_write(log_tree,"log_tree.pkl")
+    routines.pkl_write(log_tree, "process_tree.repr")
     return r
+
+
+brute_fork()

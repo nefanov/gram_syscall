@@ -18,21 +18,45 @@ def pkl_read(obj, f_name):
     inp.close()
     return obj
 
+# log input/output
+
+
+def log_output(log, f_name, is_full=1):
+    if is_full:
+        if not f_name:
+            for pre, fill, node in RenderTree(log):
+                print("%s%s" % (pre, node.name))
+
+        else:
+            f = open(f_name, 'w')
+            for pre, fill, node in RenderTree(log):
+                f.write("%s%s" % (pre, node.name))
+            f.close()
+    return
+
 # workers
 
 
 def worker_check_field(r, argv, ret):
+
     if argv[0] == 'p':
         if r.p == argv[1]:
-            ret = r
+            if not ret:
+                ret = list()
+            ret.append(None)
+            ret[0] = r
 
     if argv[0] == 'g':
         if r.g == argv[1]:
+            if not ret:
+                ret = list()
             ret.append(None)
             ret[-1] = r
 
     if argv[0] == 's':
         if r.s == argv[1]:
+            if not ret:
+                ret = list()
             ret.append(None)
             ret[-1] = r
 
@@ -100,7 +124,8 @@ def construct(ss, r):
 #
 # worker_reconstruct: reconstruct the string from sub-tree representation
 def worker_reconstruct(r, argv, ret):
-    ret = argv + "|" + str(r.p) + " " + str(r.s) + " " + str(r.g) + ";["
+    ret[0] = argv[0] + "|" + str(r.p) + " " + str(r.s) + " " + str(r.g) + ";["
+    return
 
 
 # process_graph_routines
@@ -120,7 +145,7 @@ def dfs(r, func, func_finalizer, argv, ret):
 
 
 def construct(r):
-    res = ""
+    res = [""]
     dfs(r, worker_reconstruct, worker_empty, res, res)
     return res
 
