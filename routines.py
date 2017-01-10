@@ -87,8 +87,14 @@ def worker_get_sid_by_pgid(r, argv, ret):
         ret = r.s
 
 
+# worker_reconstruct: reconstruct the string from sub-tree representation
+def worker_reconstruct(r, argv, ret):
+    ret[0] = argv[0] + "|" + str(r.p) + " " + str(r.s) + " " + str(r.g) + ";["
+    return
+
+
 def reconstruct_finalizer(r, argv, ret):
-    ret = argv + "]"
+    ret[0] = argv[0] + "]"
     return
 
 
@@ -121,13 +127,6 @@ def construct(ss, r):
     return split_extensive(ss, r)
 
 
-#
-# worker_reconstruct: reconstruct the string from sub-tree representation
-def worker_reconstruct(r, argv, ret):
-    ret[0] = argv[0] + "|" + str(r.p) + " " + str(r.s) + " " + str(r.g) + ";["
-    return
-
-
 # process_graph_routines
 
 
@@ -137,16 +136,17 @@ def dfs(r, func, func_finalizer, argv, ret):
         return
 
     func(r, argv, ret)
-    func_finalizer(r, argv, ret)
 
     for node in r.children:
         dfs(node, func, func_finalizer, argv, ret)
+
+    func_finalizer(r, argv, ret)
     return
 
 
 def construct(r):
     res = [""]
-    dfs(r, worker_reconstruct, worker_empty, res, res)
+    dfs(r, worker_reconstruct, reconstruct_finalizer, res, res)
     return res
 
 
