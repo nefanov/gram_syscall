@@ -1,6 +1,6 @@
 import routines
 
-PROC_LIMIT = 2**16
+PROC_LIMIT = (2**16 - 2)
 
 class representor:
     def __init__(self, parent, p, g, s, children):
@@ -12,7 +12,7 @@ class representor:
         return
 
     def fork(self, ns_last_pid):
-        while pid_checker(self, ns_last_pid)[0]:
+        while pid_checker(self, ns_last_pid)[0] or ns_last_pid == 1 or ns_last_pid == 0: # 0 - SCHED, 1 - INIT
             ns_last_pid += 1
             ns_last_pid % PROC_LIMIT
 

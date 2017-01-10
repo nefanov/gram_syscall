@@ -1,5 +1,6 @@
 import routines
 import rules
+import sys
 
 
 def print_log_iteration(iteration=0, power_limit=0, state_notation=""):
@@ -32,7 +33,7 @@ def perm(r, lst, rls, argv, func_lst_transform=[None], is_log=0, log_tree=None, 
 
     for num, node in enumerate(lst):
         for rn, rule in enumerate(rls):
-            print rn, rule, getattr(node, rule)
+            print rn, rule
             argv_ret = getattr(node, rule)(*argv[rn])
             # log current state into the log_tree
             if is_log:
@@ -46,7 +47,7 @@ def perm(r, lst, rls, argv, func_lst_transform=[None], is_log=0, log_tree=None, 
                 if func_lst_transform[-1]:
                     new_lst = func_lst_transform[-1]([num, lst])
 
-            perm(r, new_lst, rule, argv_ret, func_lst_transform, is_log, log_tree, max_proc_num)
+            perm(r, new_lst, rls, [[argv_ret]], func_lst_transform, is_log, log_tree, max_proc_num)
 
     return
 
@@ -54,6 +55,7 @@ def perm(r, lst, rls, argv, func_lst_transform=[None], is_log=0, log_tree=None, 
 def brute_fork(r=rules.representor(None, 1, 1, 1, []), ns_last_pid=1, is_log=1, log_tree=routines.Node(["", "", "|1 1 1 ;[]"])):
     lst = []
     routines.dfs(r, routines.worker_list_nodes, routines.worker_empty, [], lst)
+    sys.setrecursionlimit(rules.PROC_LIMIT+2)
     perm(r, lst, ["fork"], [[ns_last_pid]], [fork_lst_transform], is_log, log_tree)
 
     routines.log_output(log_tree, "log_tree.txt")
