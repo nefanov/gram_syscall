@@ -1,6 +1,6 @@
 import routines
 
-PROC_LIMIT = (2**16 - 2)
+PROC_LIMIT = 4#(2**16 - 2)
 
 class representor:
     def __init__(self, parent, p, g, s, children):
@@ -17,7 +17,7 @@ class representor:
             ns_last_pid % PROC_LIMIT
 
         self.children.append(representor(self, ns_last_pid, self.g, self.s, []))
-        print ns_last_pid
+#        print ns_last_pid
         ns_last_pid += 1
         ns_last_pid %= PROC_LIMIT
         return ns_last_pid

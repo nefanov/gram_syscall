@@ -30,7 +30,9 @@ def log_output(log, f_name, is_full=1):
         else:
             f = open(f_name, 'w')
             for pre, fill, node in RenderTree(log):
-                f.write("%s%s" % (pre, node.name))
+                print("%s%s" % (pre, node.name))
+                zz = "%s%s" % (pre, node.name)
+                f.write(zz.encode("UTF-8"))
             f.close()
     return
 
