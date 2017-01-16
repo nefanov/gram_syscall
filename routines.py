@@ -1,7 +1,21 @@
 import re
 import rules
-from anytree import Node, RenderTree
+from anytree import Node, RenderTree, PreOrderIter, PostOrderIter
 import cPickle as pickle
+
+
+# crafted pointer-imitation instances
+class ptr(object):
+    def __init__(self, value): self.value = value
+'''
+#  example:
+y = ptr(obj1)
+x = y
+x.value = obj2
+print y.value
+______________
+prints obj2
+'''
 
 # serialization I/O
 
@@ -46,34 +60,32 @@ def worker_check_field(r, argv, ret):
             if not ret:
                 ret = list()
             ret.append(None)
-            ret[0] = r
+            ret[0] = r  # insert a copy of r
 
     if argv[0] == 'g':
         if r.g == argv[1]:
             if not ret:
                 ret = list()
             ret.append(None)
-            ret[-1] = r
+            ret[-1] = r   # insert a copy of r
 
     if argv[0] == 's':
         if r.s == argv[1]:
             if not ret:
                 ret = list()
             ret.append(None)
-            ret[-1] = r
+            ret[-1] = r   # insert a copy of r
 
     return
 
 
-# collects all the nodes to the list
+# collects  nodes into the new list
 def worker_list_nodes(r, argv, ret):
-    ret.append(None)
-    ret[-1] = r
+    ret.append(ptr(r))
     return
 
 
 def worker_print(r, argv, ret=0):
-    print r, ":"
     if not r:
         return
     print r.p, r.g, r.s
@@ -91,8 +103,12 @@ def worker_get_sid_by_pgid(r, argv, ret):
 
 # worker_reconstruct: reconstruct the string from sub-tree representation
 def worker_reconstruct(r, argv, ret):
-    ret[0] = argv[0] + "|" + str(r.p) + " " + str(r.s) + " " + str(r.g) + ";["
+    ret[0] = argv[0] + "|" + str(r.p) + " " + str(r.g) + " " + str(r.s) + ";["
     return
+
+
+def worker_string_sync(r, argv, ret):
+    r.name = "|" + str(r.p) + " " + str(r.g) + " " + str(r.s) + ";"
 
 
 def reconstruct_finalizer(r, argv, ret):
@@ -108,15 +124,15 @@ def fill_lvl(r, lst):
             continue
 
         tmp_s = re.findall('\d+', line)
-        tmp_v = rules.representor(r_lvl, tmp_s[0], tmp_s[1], tmp_s[2], [])
-        r_lvl.children.append(tmp_v)
+        Node("|" + str(r.p) + " " + str(r.g) + " " + str(r.s) + ";", tmp_s[0], tmp_s[1], tmp_s[2], parent=r_lvl)
 
-        if (line[-1] == '['):
+        if line[-1] == '[':
             r_lvl = r_lvl.children[-1]
-        elif (line[-1] == line[-2] == ']'):
+        elif line[-1] == line[-2] == ']':
             r_lvl = r_lvl.parent
 
     return r
+
 
 # extensive string split by cStringIO routines
 def split_extensive(ss, r):
@@ -150,8 +166,4 @@ def construct(r):
     res = [""]
     dfs(r, worker_reconstruct, reconstruct_finalizer, res, res)
     return res
-
-
-
-
 

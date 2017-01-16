@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
 """
+Extended modification for usage in the "gram_syscall" project:
+- extra fields parent,p,g,s, ("representor") which are hidden for some routines as "RenderTree"
+- name is used for strdump of representor.
+
 Powerful and Lightweight Python Tree Data Structure.
 
 Overview
@@ -335,7 +339,7 @@ class NodeMixin(object):
 
 class Node(NodeMixin, object):
 
-    def __init__(self, name, parent=None, **kwargs):
+    def __init__(self, name, p=None, g=None, s=None, log=None, parent=None, **kwargs):
         u"""
         A simple tree node with a `name` and any `kwargs`.
 
@@ -361,6 +365,10 @@ class Node(NodeMixin, object):
                 └── Node('root/sub1/sub1C/sub1Ca')
         """
         self.name = name
+        self.p = p
+        self.g = g
+        self.s = s
+        self.log = None
         self.parent = parent
         self.__dict__.update(kwargs)
 
