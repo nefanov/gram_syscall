@@ -11,15 +11,15 @@ def init_text_node(parent, p, g, s):
     return routines.Node("|" + str(p) + " " + str(g) + " " + str(s) + ";", parent=parent)
 
 
-def fork(node, ns_last_pid):
+def fork(node, ns_last_pid, proc_limit=2**16):
     while pid_checker(node, ns_last_pid)[0] or ns_last_pid == 1 or ns_last_pid == 0:  # 0 - SCHED, 1 - INIT
         ns_last_pid += 1
-        ns_last_pid % PROC_LIMIT
+        ns_last_pid % proc_limit
 
     routines.Node("|" + str(ns_last_pid) + " " + str(node.g) + " " + str(node.s) + ";", ns_last_pid, node.g, node.s, parent=node)
     #        print ns_last_pid
     ns_last_pid += 1
-    ns_last_pid %= PROC_LIMIT
+    ns_last_pid %= proc_limit+1
     return ns_last_pid
 
 def setsid(node):

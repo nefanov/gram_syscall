@@ -35,11 +35,14 @@ def pkl_read(obj, f_name):
 # log input/output
 
 
-def log_output(log, f_name, is_full=1):
+def log_output(log, f_name, is_full=1, is_debug=1):
     if is_full:
         if not f_name:
             for pre, fill, node in RenderTree(log):
-                print("%s%s" % (pre, node.name))
+                if is_debug:
+                    print("%s%s %d" % (pre, node.name, id(node)))
+                else:
+                    print("%s%s" % (pre, node.name))
 
         else:
             f = open(f_name, 'w')
