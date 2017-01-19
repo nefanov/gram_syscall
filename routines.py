@@ -35,7 +35,7 @@ def pkl_read(obj, f_name):
 # log input/output
 
 
-def log_output(log, f_name, is_full=1, is_debug=1):
+def log_output(log, f_name, is_full=1, is_debug=1, opt=0, f=None):
     if is_full:
         if not f_name:
             for pre, fill, node in RenderTree(log):
@@ -45,12 +45,27 @@ def log_output(log, f_name, is_full=1, is_debug=1):
                     print("%s%s" % (pre, node.name))
 
         else:
-            f = open(f_name, 'w')
+            if not opt:
+                f = open(f_name, 'w')
             for pre, fill, node in RenderTree(log):
                 print("%s%s" % (pre, node.name))
                 zz = "%s%s" % (pre, node.name)
                 f.write(zz.encode("UTF-8"))
-            f.close()
+            if not opt:
+                f.close()
+    return
+
+
+def visualize(src, output=None, is_full=1, is_debug=0):
+    f = open(src, 'r')
+    if output:
+        fout = open(output, 'w')
+    r = Node("|0 0 0;", 0, 0, 0)  # in my suggestion, there is a zero process "SCHED"
+    reconstruct(f.readline(), r)
+    log_output(r, output, is_full, is_debug,1, fout)
+    if output:
+        fout.close()
+    f.close()
     return
 
 # workers
@@ -118,19 +133,21 @@ def reconstruct_finalizer(r, argv, ret):
     ret[0] = argv[0] + "]"
     return
 
+# adds children to the r steps by step
+
 
 def fill_lvl(r, lst):
     r_lvl = r
     for num, line in enumerate(lst):
-        print line
+
         if line == '':
             continue
 
         tmp_s = re.findall('\d+', line)
-        Node("|" + str(r.p) + " " + str(r.g) + " " + str(r.s) + ";", tmp_s[0], tmp_s[1], tmp_s[2], parent=r_lvl)
+        current = Node("|" + str(r.p) + " " + str(r.g) + " " + str(r.s) + ";", tmp_s[0], tmp_s[1], tmp_s[2], parent=r_lvl)
 
         if line[-1] == '[':
-            r_lvl = r_lvl.children[-1]
+            r_lvl = current
         elif line[-1] == line[-2] == ']':
             r_lvl = r_lvl.parent
 
@@ -144,7 +161,7 @@ def split_extensive(ss, r):
     return r
 
 
-def construct(ss, r):
+def reconstruct(ss, r):
     return split_extensive(ss, r)
 
 

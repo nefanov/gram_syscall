@@ -1,6 +1,6 @@
 import routines
 
-PROC_LIMIT = 3# (2**16 - 2)
+PROC_LIMIT = 4#(2**16 - 2)
 
 
 def init_repr_node(r, parent):
@@ -11,7 +11,9 @@ def init_text_node(parent, p, g, s):
     return routines.Node("|" + str(p) + " " + str(g) + " " + str(s) + ";", parent=parent)
 
 
-def fork(node, ns_last_pid, proc_limit=2**16):
+def fork(node,
+         ns_last_pid,
+         proc_limit=2**16):
     while pid_checker(node, ns_last_pid)[0] or ns_last_pid == 1 or ns_last_pid == 0:  # 0 - SCHED, 1 - INIT
         ns_last_pid += 1
         ns_last_pid % proc_limit
@@ -32,12 +34,15 @@ def setsid(node):
     return 0
 
 
-def setpgid(self, pid=0, pgid=0, root=None):
+def setpgid(node,
+            pid=0,
+            pgid=0,
+            root=None):
     if pid == 0:
         if pgid == 0:
-            self.g = self.p
+            node.g = node.p
         else:
-            self.g = pgid
+            node.g = pgid
 
         return 0
 
@@ -45,18 +50,8 @@ def setpgid(self, pid=0, pgid=0, root=None):
         return -1
 
     process = pid_checker(root, pid)
-    if not process:
-        return -1
 
-    if pgid == 0:
-        process.g = self.p
-        return 0
 
-    if process.s != self.s:
-        return -1
-
-    if process.s != self.s:  # ?????????
-        return -1
 
     return 0
 
