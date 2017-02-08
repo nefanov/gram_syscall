@@ -4,10 +4,11 @@ import os
 
 class stack:
 
-    def __init__(self, bp, sp, lr):
+    def __init__(self):
         self.bp = 0
         self.sp = 0
         self.lr = 0
+        self.data = list(0)
 
     def push(self,val):
         self.data.push_back(val)
@@ -26,8 +27,16 @@ class stack:
         self.bp = self.lr
 
 
+class machine:
 
+    def __init__(self):
+        self.stack = stack()
+        self.state = 'init'
+        return self
 
-
+parser = machine()
 print "1 1 1 [ ]".split(' ')
-
+# then if '[]
+if (parser.state=='proc'):
+    parser.stack.push("1 1 1")
+    # and analyse them
