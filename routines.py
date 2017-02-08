@@ -78,7 +78,7 @@ def worker_check_field(r, argv, ret):
             if not ret:
                 ret = list()
             ret.append(None)
-            ret[0] = r  # insert a copy of r
+            ret[-1] = ptr(r)  # insert a copy of r
 
     if argv[0] == 'g':
         if r.g == argv[1]:

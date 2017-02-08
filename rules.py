@@ -1,6 +1,6 @@
 import routines
 
-PROC_LIMIT = 4#(2**16 - 2)
+PROC_LIMIT = 8#(2**16 - 2)
 
 
 def init_repr_node(r, parent):
@@ -38,13 +38,27 @@ def setpgid(node,
             pid=0,
             pgid=0,
             root=None):
+
     if pid == 0:
         if pgid == 0:
             node.g = node.p
         else:
             node.g = pgid
 
-        return 0
+    if pgid == 0:
+        pid = pgid
+
+    proc = pid_checker(node, pid)
+
+    if not proc:
+        return -1
+
+    if node.s != proc.s:
+        return -1
+
+    if pid == proc.s:
+        return -1
+
 
     if not root:  # there are no root of process tree
         return -1
@@ -68,7 +82,10 @@ def exit2(self):
 def pid_checker(r, pid):
     res = [None]
     routines.dfs(r, routines.worker_check_field, routines.worker_empty, ['p', pid], res)
-    return res
+    if not res[-1]:
+        return [0]
+
+    return res[-1].value
 
 
 # returns list of processes in the given session

@@ -1,0 +1,33 @@
+import os
+
+# bp, sp, lr are indexes
+
+class stack:
+
+    def __init__(self, bp, sp, lr):
+        self.bp = 0
+        self.sp = 0
+        self.lr = 0
+
+    def push(self,val):
+        self.data.push_back(val)
+        self.sp += 1
+        self.bp = self.sp
+
+    def pop(self):
+        self.sp -= 1
+        return self.data.pop()
+
+    def call(self):
+        self.lr = self.bp
+        self.bp = self.sp
+
+    def ret(self):
+        self.bp = self.lr
+
+
+
+
+
+print "1 1 1 [ ]".split(' ')
+
