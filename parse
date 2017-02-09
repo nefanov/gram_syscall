@@ -1,5 +1,6 @@
 import os
 
+# terminal_stack
 # bp, sp, lr are indexes
 
 class stack:
@@ -36,7 +37,11 @@ class machine:
 
 parser = machine()
 print "1 1 1 [ ]".split(' ')
-# then if '[]
-if (parser.state=='proc'):
+
+# then if '['
+if (parser.state == 'proc'):
+    parser.state = 'call'
     parser.stack.push("1 1 1")
     # and analyse them
+# if ']'
+# pop and analyse )
