@@ -3,12 +3,13 @@ import rules
 from anytree import Node, RenderTree, PreOrderIter, PostOrderIter
 import cPickle as pickle
 
+
 # returns 1 if argtype is int 
 def is_link(data):
-	if isinstance(data, int):
-		return 1
+    if isinstance(data, int):
+        return 1
 
-	return 0
+    return 0
 
 # crafted pointer-imitation instances
 class ptr(object):
