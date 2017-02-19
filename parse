@@ -1,4 +1,6 @@
 import os
+import routines
+from orderedset import OrderedSet
 
 # terminal_stack
 # bp, sp, lr are indexes
@@ -9,23 +11,40 @@ class stack:
         self.bp = 0
         self.sp = 0
         self.lr = 0
-        self.data = list(0)
+        self.data = list()
 
-    def push(self,val):
-        self.data.push_back(val)
+    def __getitem__(self,item):
+        return self.data[item]
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+# push the val to analyser's stack
+    def push(self, val):
+        self.data.append(val)
         self.sp += 1
-        self.bp = self.sp
 
+# pop the val and return, without bp unwinding
     def pop(self):
         self.sp -= 1
         return self.data.pop()
 
+# call: save the bp into lr and
     def call(self):
         self.lr = self.bp
         self.bp = self.sp
 
-    def ret(self):
+# unwind the bp
+    def unwind(self):
         self.bp = self.lr
+'''
+    def represent(self,  children_from, parent=routines.Node("1 1 1")):
+        for i in xrange(children_from, len(parent.data)):
+'''
+
+
+
+#def match_pattern(, ):
 
 
 class machine:
@@ -33,15 +52,90 @@ class machine:
     def __init__(self):
         self.stack = stack()
         self.state = 'init'
-        return self
 
-parser = machine()
-print "1 1 1 [ ]".split(' ')
 
-# then if '['
-if (parser.state == 'proc'):
-    parser.state = 'call'
-    parser.stack.push("1 1 1")
-    # and analyse them
-# if ']'
-# pop and analyse )
+
+
+def parse(argst="100 101 102 [ ]"):
+    line = argst.split(' ')
+    pidset = OrderedSet()
+    parser = machine()
+
+    num = 0
+    while num in xrange(len(line)):
+        if (line[num]).isdigit() and (line[num+1]).isdigit() and (line[num+2]).isdigit():
+            parser.state = 'proc'
+            parser.stack.push([line[num], line[num+1], line[num+2]])
+            num += 3
+
+            try:
+                pidset.index(int(line[num-3]))
+            except ValueError:
+                pidset.add(int(line[num-3]))
+
+            else:
+                print "Parsing error: pid duplicate"
+                break
+
+
+
+        if line[num] == '[':
+            if parser.state == 'proc':
+                parser.state = 'call'
+                parser.stack.push(parser.stack.bp)
+                print "bp_old" + str(parser.stack.bp)
+                print "bp_new" + str(parser.stack.sp - 1)
+                print parser.stack.data
+                parser.stack.bp = parser.stack.sp - 1
+
+        elif line[num] == ']':
+
+            if parser.stack.sp - parser.stack.bp == 1:  # leaf-node
+
+                parser.state == 'revert'
+
+                parser.stack.bp = parser.stack[parser.stack.bp]
+
+                num += 1
+                continue
+
+            else:
+
+                #  not the leaf node
+                for it in xrange(parser.stack.bp + 1, parser.stack.sp, 1):
+
+                    # check all context rules, then:
+                    try:
+                        int(parser.stack[it])
+
+                    except TypeError:
+                        if parser.stack[it][-1] == parser.stack[it][-2] == parser.stack[it][-3]:
+                            parser.stack[it].insert(0, 'setsid')
+                        elif parser.stack[it][-2] == parser.stack[it][-3]:
+                            parser.stack[it].insert(0, 'setpgid(0,0)')
+                        elif parser.stack[it][-2] != parser.stack[parser.stack.bp-1][-2] and parser.stack[it][-2] != parser.stack[it][-1] :
+                            parser.stack[it].insert(0, 'setpgid(pid,pgid)')
+
+                        parser.stack[it].insert(0, 'fork')
+                    else:
+                        parser.stack[it] = -1
+                        continue
+
+                parser.state == 'revert'
+                parser.stack.bp = parser.stack[parser.stack.bp]
+
+        else:
+            print "Parsing error: " + line[num]
+            break
+
+        num += 1
+    it = 0
+    while it < len(parser.stack.data):
+        if parser.stack.data[it] == -1:
+            parser.stack.data.pop(it)
+        it+=1
+    print parser.stack.data
+
+
+
+parse("1 1 1 [ 2 2 2 [ 3 1 1 [ ] ] ]")
