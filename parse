@@ -2,9 +2,69 @@ import os
 import routines
 from orderedset import OrderedSet
 
-# terminal_stack
-# bp, sp, lr are indexes
 
+#  rule checkers
+
+class proc:
+
+    def __init__(self,p,g,s):
+        self.g = g
+        self.s = s
+        self.p = p
+
+
+def match_fork(p=proc('1','1','1'), c=proc('1','1','1')):
+    if p.g == c.g == p.s == c.s:
+        return 'fork'
+    return 'nop'
+
+
+def match_setsid(p=proc('1','1','1'), c=proc('1','1','1')):
+    if c.s == c.g == c.p:
+        if not c.s == p.s:
+            return 'setsid'
+
+    return 'nop'
+
+
+# setpgid is context-dependent rule
+def match_setpgid(p=proc('1','1','1'), c=proc('1','1','1'), context_dep=False, group_list=[]):
+    # the most simple case: setpgid(0,0)
+    if c.g == c.p and not c.s == c.p:
+        return 'setpgid(0,0)'
+
+    # the another case is more complex and context-dependent: the group should be checked: setpgid(0,pgid) && exists(pgid,pgid,sid)
+    if context_dep:
+        if c.g in group_list and not c.g == p.g and c.s == p.s:
+            return 'setpgid(0,' + p.s + ')'
+
+    return 'nop'
+
+
+#  context-free patterns match
+def cf_patterns_match(parent=['1','1','1'], child=['2','1','1']):
+    p = proc(parent[0],parent[1],parent[2])
+    c = proc(child[0], child[1], child[2])
+    proc_rules_list = [match_setsid, match_setpgid]
+    for func in proc_rules_list:
+        if func(p, c) != 'nop':
+            return func(p, c)
+    return 'nop'
+
+
+def reconstruct(proc_chain=[]):
+
+    return proc_chain
+
+'''
+def attach(list ):
+
+    return Node
+'''
+
+
+# terminal->nonterminal stack
+# bp, sp, lr are indexes, lr are unused now
 class stack:
 
     def __init__(self):
@@ -18,6 +78,7 @@ class stack:
 
     def __setitem__(self, key, value):
         self.data[key] = value
+
 
 # push the val to analyser's stack
     def push(self, val):
@@ -54,6 +115,9 @@ class machine:
         self.state = 'init'
 
 
+# parser is a left context-free parser with context-dependent post-check (In compiler-like SA manner).
+# 1) context-free upwarding until ']' with non-empty stack. Then trusted (context-free) downwarding on stackframe with reconstruction.
+# 2) after the whole string is ended - full untrusted (context-dependent) process check.
 
 
 def parse(argst="100 101 102 [ ]"):
@@ -65,7 +129,7 @@ def parse(argst="100 101 102 [ ]"):
     while num in xrange(len(line)):
         if (line[num]).isdigit() and (line[num+1]).isdigit() and (line[num+2]).isdigit():
             parser.state = 'proc'
-            parser.stack.push([line[num], line[num+1], line[num+2]])
+            parser.stack.push([[line[num], line[num+1], line[num+2]]]) #list of lists
             num += 3
 
             try:
@@ -77,15 +141,13 @@ def parse(argst="100 101 102 [ ]"):
                 print "Parsing error: pid duplicate"
                 break
 
-
-
         if line[num] == '[':
             if parser.state == 'proc':
                 parser.state = 'call'
                 parser.stack.push(parser.stack.bp)
-                print "bp_old" + str(parser.stack.bp)
-                print "bp_new" + str(parser.stack.sp - 1)
-                print parser.stack.data
+#                print "bp_old" + str(parser.stack.bp)
+#                print "bp_new" + str(parser.stack.sp - 1)
+#                print parser.stack.data
                 parser.stack.bp = parser.stack.sp - 1
 
         elif line[num] == ']':
@@ -105,20 +167,22 @@ def parse(argst="100 101 102 [ ]"):
                 for it in xrange(parser.stack.bp + 1, parser.stack.sp, 1):
 
                     # check all context rules, then:
-                    try:
-                        int(parser.stack[it])
+                    if  not (routines.is_link(parser.stack[it])):
+                        inner_it = -1
+                        match_res = cf_patterns_match(parser.stack[parser.stack.bp-1][inner_it], parser.stack[it][inner_it])
+                        if not match_res == 'nop':
+                            print match_res
+                            print parser.stack[it], "<-", parser.stack[parser.stack.bp-1]
+                            parser.stack[it].insert(0,match_res)
+                            print "pbp"
+                            print parser.stack[parser.stack.bp - 1]
+                            parser.stack[it].insert(0, [parser.stack[it][-1][0], parser.stack[parser.stack.bp-1][-1][1], parser.stack[parser.stack.bp-1][-1][2]])
+#                            parser.stack[it][0][0] = parser.stack[it][-1][0]
+                            print it
 
-                    except TypeError:
-                        if parser.stack[it][-1] == parser.stack[it][-2] == parser.stack[it][-3]:
-                            parser.stack[it].insert(0, 'setsid')
-                        elif parser.stack[it][-2] == parser.stack[it][-3]:
-                            parser.stack[it].insert(0, 'setpgid(0,0)')
-                        elif parser.stack[it][-2] != parser.stack[parser.stack.bp-1][-2] and parser.stack[it][-2] != parser.stack[it][-1] :
-                            parser.stack[it].insert(0, 'setpgid(pid,pgid)')
 
-                        parser.stack[it].insert(0, 'fork')
                     else:
-                        parser.stack[it] = -1
+#                        parser.stack[it] = -1
                         continue
 
                 parser.state == 'revert'
@@ -129,13 +193,18 @@ def parse(argst="100 101 102 [ ]"):
             break
 
         num += 1
+    '''
     it = 0
     while it < len(parser.stack.data):
         if parser.stack.data[it] == -1:
             parser.stack.data.pop(it)
         it+=1
-    print parser.stack.data
+    '''
+    # post-analyse: context-dependent part
+    print "final stack dump"
+    for i in parser.stack.data:
+        print i
 
 
 
-parse("1 1 1 [ 2 2 2 [ 3 1 1 [ ] ] ]")
+parse("1 1 1 [ 2 2 2 [ 4 1 1 [ ] 6 6 1 [ ] ] 5 1 1 [ ] ]")

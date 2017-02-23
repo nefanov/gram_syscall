@@ -11,6 +11,12 @@ def is_link(data):
 
     return 0
 
+def is_list(data):
+    if isinstance(data, list):
+        return 1
+
+    return 0
+
 # crafted pointer-imitation instances
 class ptr(object):
     def __init__(self, value): self.value = value
