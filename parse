@@ -1,4 +1,4 @@
-import os
+import sys
 import routines
 from orderedset import OrderedSet
 
@@ -13,43 +13,57 @@ class proc:
         self.p = p
 
 
+# every match function returns list of [the name [args] of syscall, reconstructed Left side of rule (proc-terminal)]
+# for example, ['fork', [1,1,1]]
+
+
 def match_fork(p=proc('1','1','1'), c=proc('1','1','1')):
     if p.g == c.g == p.s == c.s:
-        return 'fork'
-    return 'nop'
+        return ['fork', [p.p, p.g, p.s]]
+    return ['nop', []]
 
+#context-dependent check: session with c.s number should exist
 
-def match_setsid(p=proc('1','1','1'), c=proc('1','1','1')):
+def match_setsid(p=proc('1','1','1'), c=proc('1','1','1'), context_dep=False, session_list=[]):
     if c.s == c.g == c.p:
         if not c.s == p.s:
-            return 'setsid'
+            return ['setsid', [c.p, p.g, p.s]]
 
-    return 'nop'
+    if not context_dep==False:
+        if not c.s == p.s and not c.g in session_list:
+            print "parsing error: session "+str(c.s)+" not found"
+            quit()
+
+    return ['nop', []]
 
 
 # setpgid is context-dependent rule
 def match_setpgid(p=proc('1','1','1'), c=proc('1','1','1'), context_dep=False, group_list=[]):
-    # the most simple case: setpgid(0,0)
-    if c.g == c.p and not c.s == c.p:
-        return 'setpgid(0,0)'
+    # the most simple case: setpgid(0,0) - set new group and become group leader
+    if c.p == c.g and not c.s == c.p:
+
+        return ['setpgid('+ str(c.g) + ', ' + str(c.g)+')', [c.p, p.g, c.s]]
 
     # the another case is more complex and context-dependent: the group should be checked: setpgid(0,pgid) && exists(pgid,pgid,sid)
-    if context_dep:
-        if c.g in group_list and not c.g == p.g and c.s == p.s:
-            return 'setpgid(0,' + p.s + ')'
+    #  - add itself to some group
 
-    return 'nop'
+    if not context_dep==False:
+        if c.g in group_list and not c.g == p.g and c.s == p.s:
+            return ['setpgid(self,' + p.s + ')', [c.p, p.g, c.s]]
+
+    return ['nop',[]]
 
 
 #  context-free patterns match
 def cf_patterns_match(parent=['1','1','1'], child=['2','1','1']):
-    p = proc(parent[0],parent[1],parent[2])
+    p = proc(parent[0], parent[1], parent[2])
     c = proc(child[0], child[1], child[2])
     proc_rules_list = [match_setsid, match_setpgid]
     for func in proc_rules_list:
-        if func(p, c) != 'nop':
+        if func(p, c)[0] != 'nop':
             return func(p, c)
-    return 'nop'
+
+    return ['nop', []]
 
 
 def reconstruct(proc_chain=[]):
@@ -119,8 +133,10 @@ class machine:
 # 1) context-free upwarding until ']' with non-empty stack. Then trusted (context-free) downwarding on stackframe with reconstruction.
 # 2) after the whole string is ended - full untrusted (context-dependent) process check.
 
+#'optimized' should solve the problem of non-optimal setpgids (see example 1 1 1 -> 2 2 1 -> 3 1 1)
 
-def parse(argst="100 101 102 [ ]"):
+
+def parse(argst="100 101 102 [ ]", optimized=False):
     line = argst.split(' ')
     pidset = OrderedSet()
     parser = machine()
@@ -129,7 +145,7 @@ def parse(argst="100 101 102 [ ]"):
     while num in xrange(len(line)):
         if (line[num]).isdigit() and (line[num+1]).isdigit() and (line[num+2]).isdigit():
             parser.state = 'proc'
-            parser.stack.push([[line[num], line[num+1], line[num+2]]]) #list of lists
+            parser.stack.push([[line[num], line[num+1], line[num+2]]])
             num += 3
 
             try:
@@ -163,26 +179,34 @@ def parse(argst="100 101 102 [ ]"):
 
             else:
 
-                #  not the leaf node
-                for it in xrange(parser.stack.bp + 1, parser.stack.sp, 1):
+                #  not leaf node - visit all of 1st level children
+                it = parser.stack.bp
+                while it < parser.stack.sp-1:
 
+                    it += 1
+
+                    print it
                     # check all context rules, then:
-                    if  not (routines.is_link(parser.stack[it])):
+                    if not (routines.is_link(parser.stack[it])):
                         inner_it = -1
+                        if parser.stack[it+1] > parser.stack.bp:
+                            it += 1
+                            continue
+
+                        # log info:
+                        print "match " + str(parser.stack[parser.stack.bp-1][inner_it])+" and "+str(parser.stack[it][inner_it])
                         match_res = cf_patterns_match(parser.stack[parser.stack.bp-1][inner_it], parser.stack[it][inner_it])
-                        if not match_res == 'nop':
-                            print match_res
-                            print parser.stack[it], "<-", parser.stack[parser.stack.bp-1]
-                            parser.stack[it].insert(0,match_res)
-                            print "pbp"
-                            print parser.stack[parser.stack.bp - 1]
-                            parser.stack[it].insert(0, [parser.stack[it][-1][0], parser.stack[parser.stack.bp-1][-1][1], parser.stack[parser.stack.bp-1][-1][2]])
-#                            parser.stack[it][0][0] = parser.stack[it][-1][0]
-                            print it
+                        # insert the reconstructed part into the stack on the current child position (left-side)
+
+                        if not match_res[0] == 'nop':
+                            # apply the matched pattern: left side of rule reconstruction
+                            print "\t match OK: "+str(match_res[0]) + str(match_res[1])
+                            parser.stack[it].insert(0, match_res[0])
+                            parser.stack[it].insert(0, match_res[1])
+
 
 
                     else:
-#                        parser.stack[it] = -1
                         continue
 
                 parser.state == 'revert'
@@ -201,10 +225,10 @@ def parse(argst="100 101 102 [ ]"):
         it+=1
     '''
     # post-analyse: context-dependent part
-    print "final stack dump"
+    print "final stack dump before top-down walk"
     for i in parser.stack.data:
         print i
 
 
 
-parse("1 1 1 [ 2 2 2 [ 4 1 1 [ ] 6 6 1 [ ] ] 5 1 1 [ ] ]")
+parse("1 1 1 [ 2 2 2 [ 3 3 2 [ ] ] 5 5 5 [ ] 6 6 5 [ ] ]")
