@@ -161,6 +161,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
             if parser.state == 'proc':
                 parser.state = 'call'
                 parser.stack.push([parser.stack.bp])
+                parser.stack[-1].append([])
 #                print "bp_old" + str(parser.stack.bp)
 #                print "bp_new" + str(parser.stack.sp - 1)
 #                print parser.stack.data
@@ -192,7 +193,9 @@ def parse(argst="100 101 102 [ ]", optimized=False):
                         if parser.stack[it+1][0] > parser.stack.bp:
                             it += 1
                             continue
-
+                        #else append the children's basepointers into the list near the parent basepointer
+                        # (to handle them in context-dependent downward)
+                        parser.stack[parser.stack.bp][1].append(it+1)
                         # log info:
                         print "match " + str(parser.stack[parser.stack.bp-1][inner_it])+" and "+str(parser.stack[it][inner_it])
                         match_res = cf_patterns_match(parser.stack[parser.stack.bp-1][inner_it], parser.stack[it][inner_it])
@@ -225,9 +228,9 @@ def parse(argst="100 101 102 [ ]", optimized=False):
         it+=1
     '''
     # post-analyse: context-dependent part
-    print "final stack dump before top-down walk"
-    for i in parser.stack.data:
-        print i
+    print "LOG: final stack dump before top-down walk"
+    for i in xrange(0, len(parser.stack.data)):
+        print str(i) + ": " + str(parser.stack.data[i])
 
     it = 0
     '''
