@@ -6,13 +6,13 @@ import cPickle as pickle
 
 # returns 1 if argtype is int 
 def is_link(data):
-    if isinstance(data, int):
+    if isinstance(data[0], int):
         return 1
 
     return 0
 
 def is_list(data):
-    if isinstance(data, list):
+    if isinstance(data[0], list):
         return 1
 
     return 0

@@ -7,7 +7,7 @@ from orderedset import OrderedSet
 
 class proc:
 
-    def __init__(self,p,g,s):
+    def __init__(self, p, g, s):
         self.g = g
         self.s = s
         self.p = p
@@ -65,11 +65,11 @@ def cf_patterns_match(parent=['1','1','1'], child=['2','1','1']):
 
     return ['nop', []]
 
-
+'''
 def reconstruct(proc_chain=[]):
 
     return proc_chain
-
+'''
 '''
 def attach(list ):
 
@@ -160,7 +160,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
         if line[num] == '[':
             if parser.state == 'proc':
                 parser.state = 'call'
-                parser.stack.push(parser.stack.bp)
+                parser.stack.push([parser.stack.bp])
 #                print "bp_old" + str(parser.stack.bp)
 #                print "bp_new" + str(parser.stack.sp - 1)
 #                print parser.stack.data
@@ -172,7 +172,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
 
                 parser.state == 'revert'
 
-                parser.stack.bp = parser.stack[parser.stack.bp]
+                parser.stack.bp = parser.stack[parser.stack.bp][0]
 
                 num += 1
                 continue
@@ -181,7 +181,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
 
                 #  not leaf node - visit all of 1st level children
                 it = parser.stack.bp
-                while it < parser.stack.sp-1:
+                while it < parser.stack.sp - 1:
 
                     it += 1
 
@@ -189,7 +189,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
                     # check all context rules, then:
                     if not (routines.is_link(parser.stack[it])):
                         inner_it = -1
-                        if parser.stack[it+1] > parser.stack.bp:
+                        if parser.stack[it+1][0] > parser.stack.bp:
                             it += 1
                             continue
 
@@ -210,7 +210,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
                         continue
 
                 parser.state == 'revert'
-                parser.stack.bp = parser.stack[parser.stack.bp]
+                parser.stack.bp = parser.stack[parser.stack.bp][0]
 
         else:
             print "Parsing error: " + line[num]
@@ -228,6 +228,15 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     print "final stack dump before top-down walk"
     for i in parser.stack.data:
         print i
+
+    it = 0
+    '''
+    while it < parser.stack.sp:
+        it += 1
+        if routines.is_link(parser.stack[it]):
+            parser.stack.bp = parser.stack[it]
+            while
+    '''
 
 
 
