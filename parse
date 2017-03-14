@@ -1,3 +1,4 @@
+# coding=utf-8
 import sys
 import routines
 from orderedset import OrderedSet
@@ -18,19 +19,27 @@ class proc:
 
 
 def match_fork(p=proc('1','1','1'), c=proc('1','1','1')):
-    if p.g == c.g == p.s == c.s:
+    if p.g == c.g and p.s == c.s:
         return ['fork', [p.p, p.g, p.s]]
     return ['nop', []]
 
+
+def match_fork_adapter(parent=['1','1','1'], child=['1','1','1']):
+    print "match fork adapter: log debug: parent: " + str(parent) + "match" + str(child)
+    return match_fork(proc(parent[0],parent[1],parent[2]), proc(child[0],child[1],child[2]))
+
+
 #context-dependent check: session with c.s number should exist
 
-def match_setsid(p=proc('1','1','1'), c=proc('1','1','1'), context_dep=False, session_list=[]):
+def match_setsid(p=proc('1','1','1'), c=proc('1','1','1'), context_dep=False, data_list=[OrderedSet(), OrderedSet()]):
     if c.s == c.g == c.p:
         if not c.s == p.s:
+            data_list[0].add(c.s)
+            data_list[1].add(c.s) # group with the same number exists too
             return ['setsid', [c.p, p.g, p.s]]
 
     if not context_dep==False:
-        if not c.s == p.s and not c.g in session_list:
+        if not c.s == p.s and not c.g in data_list[0]:
             print "parsing error: session "+str(c.s)+" not found"
             quit()
 
@@ -38,42 +47,62 @@ def match_setsid(p=proc('1','1','1'), c=proc('1','1','1'), context_dep=False, se
 
 
 # setpgid is context-dependent rule
-def match_setpgid(p=proc('1','1','1'), c=proc('1','1','1'), context_dep=False, group_list=[]):
+def match_setpgid(p=proc('1', '1', '1'), c=proc('1', '1', '1'), context_dep=False, data_list=[OrderedSet(), OrderedSet()]):
     # the most simple case: setpgid(0,0) - set new group and become group leader
     if c.p == c.g and not c.s == c.p:
-
+        data_list[1].add(c.g)
         return ['setpgid('+ str(c.g) + ', ' + str(c.g)+')', [c.p, p.g, c.s]]
 
     # the another case is more complex and context-dependent: the group should be checked: setpgid(0,pgid) && exists(pgid,pgid,sid)
     #  - add itself to some group
 
     if not context_dep==False:
-        if c.g in group_list and not c.g == p.g and c.s == p.s:
-            return ['setpgid(self,' + p.s + ')', [c.p, p.g, c.s]]
+        if not c.g in data_list[1]:
+            print "parsing error: group "+str(c.g)+" not exists!"
+            quit()
+         # else
+        if not c.g == p.g:
+            print "triggered cd setpgid"
+            if c.s == p.s:
+                print "triggered correct"
+                return ['setpgid(self,' + p.s + ')', [c.p, p.g, c.s]]
+    print "exit from " + str(p.p) + ' ' + str(p.g) + ' ' + str(p.s) + '       ' + str(c.p) + ' ' + str(c.g) + ' ' + str(c.s)
+    return ['nop', []]
 
-    return ['nop',[]]
+#context-dependent patterns match
+# child: left-side only
+# parent_list: whole process transformation chain
+# lookup_data: context: now list of OrderedSets
+# взять все родительские состояния, жадным поиском с сопоставлением КЗ-правила дополнить ребёнка слева до форка от любого из них
+def cd_patterns_match(parent_list=[['1','1','1']], child=['2','1','1'], lookup_data=[]):
 
+    for parent in parent_list:
+        print 'cd_match:' + str(parent) + ' ' + str(child)
+        if routines.is_basestring(parent):
+            continue
+        p = proc(parent[0], parent[1], parent[2])
+        c = proc(child[0], child[1], child[2])
+        proc_rules_list = [match_setsid, match_setpgid]
+        for i, func in enumerate(proc_rules_list):
+            subres = func(p, c, True, lookup_data)
+            if subres[0] != 'nop':
+                return subres
+
+    return ['nop', []]
 
 #  context-free patterns match
-def cf_patterns_match(parent=['1','1','1'], child=['2','1','1']):
+def cf_patterns_match(parent=['1','1','1'], child=['2','1','1'], lookup_data=[] ):
     p = proc(parent[0], parent[1], parent[2])
     c = proc(child[0], child[1], child[2])
     proc_rules_list = [match_setsid, match_setpgid]
-    for func in proc_rules_list:
-        if func(p, c)[0] != 'nop':
+    for i, func in enumerate(proc_rules_list):
+        if func(p, c, False, lookup_data)[0] != 'nop':
             return func(p, c)
 
     return ['nop', []]
 
 '''
-def reconstruct(proc_chain=[]):
-
-    return proc_chain
-'''
-'''
-def attach(list ):
-
-    return Node
+# put context-dependent part here !
 '''
 
 
@@ -87,7 +116,7 @@ class stack:
         self.lr = 0
         self.data = list()
 
-    def __getitem__(self,item):
+    def __getitem__(self, item):
         return self.data[item]
 
     def __setitem__(self, key, value):
@@ -127,7 +156,69 @@ class machine:
     def __init__(self):
         self.stack = stack()
         self.state = 'init'
+        self.pidset = OrderedSet()
+        self.sidset = OrderedSet()
+        self.pgidset = OrderedSet()
 
+#
+
+
+def cd_down(parser, it, sp, parent=routines.Node('[1 1 1]', 1, 1, 1)):
+    while it < sp - 1: # from start to the bottom of the stack
+        it += 1
+        if routines.is_link(parser.stack[it]):
+            for link in parser.stack[it][1]: # go through the all of 1st children
+                current_parent = parent
+                #reconstruction: should rewind the children and create the Node representation
+                #reconstruct(parser.stack[link], parser.stack[it-1])
+
+                match_res = cd_patterns_match(parser.stack[it - 1], parser.stack[link - 1][0], [parser.sidset, parser.pgidset])
+                # insert the reconstructed part into the stack on the current child position (left-side)
+#nb! 'link' - current children
+                print "matchres=" + str(match_res)
+                if not match_res[0] == 'nop':
+                    # apply the matched pattern: left side of rule reconstruction
+                    print "\t match OK: " + str(match_res[0]) + str(match_res[1])
+                    parser.stack[link-1].insert(0, match_res[0])
+                    parser.stack[link-1].insert(0, match_res[1])
+#nb! Matched OK!
+
+                child_node = routines.Node('fork -> ' + '  '.join(parser.stack[link-1][0]))
+                right = child_node
+                for i in xrange(2, len(parser.stack[link-1]), 2):
+                    right = routines.Node(str(parser.stack[link-1][i-1])+' -> '+str(parser.stack[link-1][i]), parent=right)
+
+                ######################################################################
+
+                for node in parser.stack[it-1]: # go through the states of parent
+                    if routines.is_basestring(node):
+                        continue
+
+                # ^ <- <- <- terminal
+                    subres = match_fork_adapter(node, parser.stack[link-1][0])
+                    if subres[0] == 'fork':
+                        print ">>>>>>>>>>>>>>LOG debug: MATCHED: " + str(match_fork_adapter(node, parser.stack[link-1][0]))
+                        child_node.parent = current_parent # attaching
+# c родителем всё сделано, можно делать рекурсивный вызов для ребёнка, но сначала поставить его ноду родительской
+                        current_parent = current_parent.children[0]
+
+                        break
+
+                #если дошли до конца - ни одного совпадения не было - ошибка парсинга - строка некорректна
+                    if node == parser.stack[it-1][-1] and subres[0] == 'nop':
+                        print "Parsing error: string is incorrect (troubles with " + str(node) + " and " + str(parser.stack[link-1][0])
+                        quit()
+                # recursive cd_down into the children of the current child
+                cd_down(parser, link-1, sp, child_node)
+
+            print it, parser.stack[it]
+            if not len(parser.stack[it][1]): #  return from the leaf-node
+                return
+
+            it = parser.stack[it][1][-1]
+    # print stack
+    # then return representation
+    return parent
 
 # parser is a left context-free parser with context-dependent post-check (In compiler-like SA manner).
 # 1) context-free upwarding until ']' with non-empty stack. Then trusted (context-free) downwarding on stackframe with reconstruction.
@@ -138,7 +229,7 @@ class machine:
 
 def parse(argst="100 101 102 [ ]", optimized=False):
     line = argst.split(' ')
-    pidset = OrderedSet()
+
     parser = machine()
 
     num = 0
@@ -149,9 +240,9 @@ def parse(argst="100 101 102 [ ]", optimized=False):
             num += 3
 
             try:
-                pidset.index(int(line[num-3]))
+                parser.pidset.index(int(line[num-3]))
             except ValueError:
-                pidset.add(int(line[num-3]))
+                parser.pidset.add(int(line[num-3]))
 
             else:
                 print "Parsing error: pid duplicate"
@@ -198,7 +289,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
                         parser.stack[parser.stack.bp][1].append(it+1)
                         # log info:
                         print "match " + str(parser.stack[parser.stack.bp-1][inner_it])+" and "+str(parser.stack[it][inner_it])
-                        match_res = cf_patterns_match(parser.stack[parser.stack.bp-1][inner_it], parser.stack[it][inner_it])
+                        match_res = cf_patterns_match(parser.stack[parser.stack.bp-1][inner_it], parser.stack[it][inner_it], [parser.sidset, parser.pgidset])
                         # insert the reconstructed part into the stack on the current child position (left-side)
 
                         if not match_res[0] == 'nop':
@@ -220,27 +311,26 @@ def parse(argst="100 101 102 [ ]", optimized=False):
             break
 
         num += 1
-    '''
-    it = 0
-    while it < len(parser.stack.data):
-        if parser.stack.data[it] == -1:
-            parser.stack.data.pop(it)
-        it+=1
-    '''
+
     # post-analyse: context-dependent part
-    print "LOG: final stack dump before top-down walk"
+    print "LOG debug: final stack dump before top-down walk"
     for i in xrange(0, len(parser.stack.data)):
         print str(i) + ": " + str(parser.stack.data[i])
 
+    print "LOG debug: pgroups: " + str(parser.pgidset)
+    print "LOG debug: sessions: " + str(parser.sidset)
     it = 0
-    '''
-    while it < parser.stack.sp:
-        it += 1
-        if routines.is_link(parser.stack[it]):
-            parser.stack.bp = parser.stack[it]
-            while
-    '''
 
+    print "Context-dependent part"
 
+    ptree_root = routines.Node(str(parser.stack[0][0]), parser.stack[0][0][0], parser.stack[0][0][1], parser.stack[0][0][2])
+    parser.sidset.add(parser.stack[0][0][2])
+    parser.pgidset.add(parser.stack[0][0][1])
+    cd_down(parser, 0, parser.stack.sp, ptree_root)
+    routines.log_output(ptree_root, "", 1, 0)
 
-parse("1 1 1 [ 2 2 2 [ 3 3 2 [ ] ] 5 5 5 [ ] 6 6 5 [ ] ]")
+    # post-print of stack:
+    for i in xrange(0, len(parser.stack.data)):
+        print str(i) + ": " + str(parser.stack.data[i])
+
+parse("1 1 1 [ 2 2 2 [ 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 5 [ ] ] ]")  # 6 6 5 [ ] ]")

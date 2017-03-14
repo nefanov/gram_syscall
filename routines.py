@@ -17,6 +17,14 @@ def is_list(data):
 
     return 0
 
+
+def is_basestring(data):
+    if isinstance(data, basestring):
+        return 1
+
+    return 0
+
+
 # crafted pointer-imitation instances
 class ptr(object):
     def __init__(self, value): self.value = value
