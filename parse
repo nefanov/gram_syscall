@@ -164,13 +164,13 @@ class machine:
 #
 
 
-def cd_down(parser, it, sp, parent=routines.Node('[1 1 1]', 1, 1, 1)):
+def cd_down(parser, it, sp):
     while it < sp - 1: # from start to the bottom of the stack
         it += 1
         if routines.is_link(parser.stack[it]):
 
             for link in parser.stack[it][1]: # go through the all of 1st children
-                current_parent = parent
+
 
                 match_res = cd_patterns_match(parser.stack[it - 1], parser.stack[link - 1][0], [parser.sidset, parser.pgidset])
 
@@ -180,38 +180,26 @@ def cd_down(parser, it, sp, parent=routines.Node('[1 1 1]', 1, 1, 1)):
                     parser.stack[link-1].insert(0, match_res[0])
                     parser.stack[link-1].insert(0, match_res[1])
 
-                child_node = routines.Node('fork --> ' + '  '.join(parser.stack[link-1][0]))
-                right = child_node
-                for i in xrange(2, len(parser.stack[link-1]), 2):
-                    right = routines.Node(str(parser.stack[link-1][i-1])+' -> '+str(parser.stack[link-1][i]), parent=right)
-                print "LOG_OUTPUT_NODE"
-                routines.log_output(child_node,'',1,0)
-#attach:
+
+#attach: checker & linker:
                 for node in parser.stack[it-1]: # go through the states of parent
                     if routines.is_basestring(node):
                         continue
 
                     subres = match_fork_adapter(node, parser.stack[link-1][0])
                     if subres[0] == 'fork':
-                        print "CURRENT PARENT: "
-                        routines.log_output(current_parent, "", 1, 0)
-                        child_node.parent = current_parent # attaching
+                        print "CURRENT PARENT IS FOUND"
 
                         parser.linker[parser.stack.data.index(parser.stack[link-1])] =  [it-1 , parser.stack[it-1].index(node)]
-
-                        current_parent = current_parent.children[0]
-                        print "CURRENT PARENT AFTER: "
-                        routines.log_output(current_parent, "", 1, 0)
                         break
 
-                    current_parent=current_parent.children[0]
 
                     if node == parser.stack[it-1][-1] and subres[0] == 'nop':
                         print "Parsing error: string is incorrect (troubles with " + str(node) + " and " + str(parser.stack[link-1][0])
                         quit()
                 # recursive cd_down into the children of the current child
                 print parser.stack[it-1]
-                cd_down(parser, link-1, sp, child_node)
+                cd_down(parser, link-1, sp)
 
             if not len(parser.stack[it][1]): #  return from the leaf-node
                 return
@@ -221,47 +209,8 @@ def cd_down(parser, it, sp, parent=routines.Node('[1 1 1]', 1, 1, 1)):
     # then return representation
     return
 
-def attach_standalone(parser, parent, it, sp):
-    while it < sp - 1:
-        it+=1
-        if routines.is_link(parser.stack[it]):
-            for link in parser.stack[it][1]: # go through the all of 1st children
-                current_parent = parent
-                current_child = routines.Node('fork --> ' + '  '.join(parser.stack[link - 1][0]))
-                right = current_child
-                for i in xrange(2, len(parser.stack[link - 1]), 2):
-                    right = routines.Node(str(parser.stack[link - 1][i - 1]) + ' -> ' + str(parser.stack[link - 1][i]),
-                                      parent=right)
 
-                    for node in parser.stack[it - 1]:  # go through the states of parent
-                        if routines.is_basestring(node):
-                            continue
 
-                        subres = match_fork_adapter(node, parser.stack[link - 1][0])
-                        if subres[0] == 'fork':
-                            print "CURRENT PARENT: "
-                            routines.log_output(current_parent, "", 1, 0)
-                            current_child.parent = current_parent  # attaching
-
-                            current_parent = current_child
-                            print "CURRENT PARENT AFTER: "
-                            routines.log_output(current_parent, "", 1, 0)
-                            break
-
-                        current_parent = current_parent.children[0]
-
-                        if node == parser.stack[it - 1][-1] and subres[0] == 'nop':
-                            print "Parsing error: string is incorrect (troubles with " + str(node) + " and " + str(
-                                parser.stack[link - 1][0])
-                            quit()
-                    # recursive cd_down into the children of the current child
-                    print parser.stack[it - 1]
-                    cd_down(parser, link - 1, sp, current_child)
-
-                if not len(parser.stack[it][1]):  # return from the leaf-node
-                    return
-
-                it = parser.stack[it][1][-1]
 
 # parser is a left context-free parser with context-dependent post-check (In compiler-like SA manner).
 # 1) context-free upwarding until ']' with non-empty stack. Then trusted (context-free) downwarding on stackframe with reconstruction.
@@ -369,7 +318,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     ptree_root = routines.Node(str(parser.stack[0][0]), parser.stack[0][0][0], parser.stack[0][0][1], parser.stack[0][0][2])
     parser.sidset.add(parser.stack[0][0][2])
     parser.pgidset.add(parser.stack[0][0][1])
-    cd_down(parser, 0, parser.stack.sp, ptree_root)
+    cd_down(parser, 0, parser.stack.sp)
     routines.log_output(ptree_root, "", 1, 0)
     print parser.linker
     # post-print of stack:
