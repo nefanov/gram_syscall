@@ -2,6 +2,7 @@
 import sys
 import routines
 from orderedset import OrderedSet
+from ordereddict import OrderedDict
 
 
 #  rule checkers
@@ -159,7 +160,7 @@ class machine:
         self.pidset = OrderedSet()
         self.sidset = OrderedSet()
         self.pgidset = OrderedSet()
-        self.linker = {} # link the nodes: key (stack index) : [parent stack index, index of parent's state]
+        self.linker = OrderedDict() # link the nodes: key (stack index) : [parent stack index, index of parent's state]
 
 #
 
@@ -167,6 +168,7 @@ class machine:
 def cd_down(parser, it, sp):
     while it < sp - 1: # from start to the bottom of the stack
         it += 1
+
         if routines.is_link(parser.stack[it]):
 
             for link in parser.stack[it][1]: # go through the all of 1st children
@@ -197,19 +199,27 @@ def cd_down(parser, it, sp):
                     if node == parser.stack[it-1][-1] and subres[0] == 'nop':
                         print "Parsing error: string is incorrect (troubles with " + str(node) + " and " + str(parser.stack[link-1][0])
                         quit()
-                # recursive cd_down into the children of the current child
-                print parser.stack[it-1]
-                cd_down(parser, link-1, sp)
+
+#                cd_down(parser, link-1, sp)
 
             if not len(parser.stack[it][1]): #  return from the leaf-node
-                return
+                #return
+                continue
 
-            it = parser.stack[it][1][-1]
+#            it = parser.stack[it][1][-1]
     # print stack
     # then return representation
     return
 
-
+def s_tree_visualize(parser, ptree_storage=OrderedDict()):
+    for i in parser.linker.keys():
+        print i
+        right = routines.Node(str(parser.stack[i-1][0]))
+        ptree_storage[i] = right
+        for j in xrange(2, len(parser.stack[i - 1][1]), 2):
+            right = routines.Node(str(parser.stack[i - 1][j - 1]) + ' -> ' + str(parser.stack[j - 1][i]), parent=right)
+        routines.log_output(ptree_storage,"",0,1)
+    return ptree_storage
 
 
 # parser is a left context-free parser with context-dependent post-check (In compiler-like SA manner).
@@ -324,5 +334,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     # post-print of stack:
     for i in xrange(0, len(parser.stack.data)):
         print str(i) + ": " + str(parser.stack.data[i])
+ #   print "STREE_VISUALIZE()"
+ #  s_tree_visualize(parser)
 
-parse("1 1 1 [ 2 2 2 [ 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")
+parse("1 1 1 [ 2 2 2 [ 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")
