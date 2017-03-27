@@ -211,16 +211,21 @@ def cd_down(parser, it, sp):
     # then return representation
     return
 
-def s_tree_visualize(parser, ptree_storage=OrderedDict()):
-    for i in parser.linker.keys():
-        print i
-        right = routines.Node(str(parser.stack[i-1][0]))
-        ptree_storage[i] = right
-        for j in xrange(2, len(parser.stack[i - 1][1]), 2):
-            right = routines.Node(str(parser.stack[i - 1][j - 1]) + ' -> ' + str(parser.stack[j - 1][i]), parent=right)
-        routines.log_output(ptree_storage,"",0,1)
-    return ptree_storage
+def tree_visualize(parser, root, ptree_storage=OrderedDict()):
 
+    for i in parser.linker.keys():
+        print "LOG_DEBUG " + str(parser.stack[i][0])
+        right = routines.Node(str(parser.stack[i][0]))
+        ptree_storage[i] = right
+
+        for j in xrange(2, len(parser.stack[i])):
+            if routines.is_basestring(parser.stack[i][j]):
+                continue
+            right = routines.Node(str(parser.stack[i][j-1])+ "->" + str(parser.stack[i][j]), parent=right)
+
+        routines.log_output(ptree_storage[i], "", 1, 0)
+
+    return root
 
 # parser is a left context-free parser with context-dependent post-check (In compiler-like SA manner).
 # 1) context-free upwarding until ']' with non-empty stack. Then trusted (context-free) downwarding on stackframe with reconstruction.
@@ -334,7 +339,8 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     # post-print of stack:
     for i in xrange(0, len(parser.stack.data)):
         print str(i) + ": " + str(parser.stack.data[i])
- #   print "STREE_VISUALIZE()"
- #  s_tree_visualize(parser)
+    print "STREE_VISUALIZE(): "
+    root = routines.Node("['1','1','1']")
+    res = tree_visualize(parser, root)
 
 parse("1 1 1 [ 2 2 2 [ 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")
