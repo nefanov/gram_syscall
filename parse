@@ -182,8 +182,8 @@ def cd_down(parser, it, sp):
                     parser.stack[link-1].insert(0, match_res[0])
                     parser.stack[link-1].insert(0, match_res[1])
 
-
 #attach: checker & linker:
+
                 for node in parser.stack[it-1]: # go through the states of parent
                     if routines.is_basestring(node):
                         continue
@@ -195,35 +195,26 @@ def cd_down(parser, it, sp):
                         parser.linker[parser.stack.data.index(parser.stack[link-1])] =  [it-1 , parser.stack[it-1].index(node)]
                         break
 
-
                     if node == parser.stack[it-1][-1] and subres[0] == 'nop':
                         print "Parsing error: string is incorrect (troubles with " + str(node) + " and " + str(parser.stack[link-1][0])
                         quit()
 
-#                cd_down(parser, link-1, sp)
-
-            if not len(parser.stack[it][1]): #  return from the leaf-node
-                #return
+            if not len(parser.stack[it][1]): # the leaf-node
                 continue
 
-#            it = parser.stack[it][1][-1]
-    # print stack
-    # then return representation
+    # then return
     return
 
 def tree_visualize(parser, root, ptree_storage=OrderedDict()):
-
     for i in parser.linker.keys():
-        print "LOG_DEBUG " + str(parser.stack[i][0])
-        right = routines.Node(str(parser.stack[i][0]))
-        ptree_storage[i] = right
+        right = routines.Node(str(parser.stack[i][0]), parent=ptree_storage[parser.linker[i][0]][parser.linker[i][1]/2])
+        ptree_storage[i] = [right]
 
         for j in xrange(2, len(parser.stack[i])):
             if routines.is_basestring(parser.stack[i][j]):
                 continue
             right = routines.Node(str(parser.stack[i][j-1])+ "->" + str(parser.stack[i][j]), parent=right)
-
-        routines.log_output(ptree_storage[i], "", 1, 0)
+            ptree_storage[i].append(right)
 
     return root
 
@@ -305,8 +296,6 @@ def parse(argst="100 101 102 [ ]", optimized=False):
                             parser.stack[it].insert(0, match_res[0])
                             parser.stack[it].insert(0, match_res[1])
 
-
-
                     else:
                         continue
 
@@ -340,7 +329,12 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     for i in xrange(0, len(parser.stack.data)):
         print str(i) + ": " + str(parser.stack.data[i])
     print "STREE_VISUALIZE(): "
-    root = routines.Node("['1','1','1']")
-    res = tree_visualize(parser, root)
+    root = routines.Node("['1','1','1']", parent=None)
+
+    ptree_tmp = OrderedDict()
+    ptree_tmp[0] = [root]
+    res = tree_visualize(parser, root, ptree_tmp)
+    print "TEST TREE:"
+    routines.log_output(root, "", 1, 0)
 
 parse("1 1 1 [ 2 2 2 [ 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")

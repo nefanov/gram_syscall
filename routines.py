@@ -77,6 +77,12 @@ def log_output(log, f_name, is_full=1, is_debug=1, opt=0, f=None):
     return
 
 
+'''
+# search the child with given name :
+def lookup_child(parent=Node("", parent=Node), name="Child"):
+
+    return child
+'''
 def visualize(src, output=None, is_full=1, is_debug=0):
     f = open(src, 'r')
     if output:
