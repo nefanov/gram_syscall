@@ -224,6 +224,7 @@ def tree_visualize(parser, root, ptree_storage=OrderedDict()):
 
 #'optimized' should solve the problem of non-optimal setpgids (see example 1 1 1 -> 2 2 1 -> 3 1 1)
 
+# X p g s [] supporting implementation - exits
 
 def parse(argst="100 101 102 [ ]", optimized=False):
     line = argst.split(' ')
@@ -235,6 +236,11 @@ def parse(argst="100 101 102 [ ]", optimized=False):
         if (line[num]).isdigit() and (line[num+1]).isdigit() and (line[num+2]).isdigit():
             parser.state = 'proc'
             parser.stack.push([[line[num], line[num+1], line[num+2]]])
+
+            # 'X'-suffix: the process is dead ('exit' syscall was executed)
+            if line[num+3]=='X':
+                parser.stack[-1][-1].append('DEAD')
+                num +=1
             num += 3
 
             try:
