@@ -200,6 +200,31 @@ def is_in_ordered(item, data=OrderedSet()):
     return False
 
 
+def lookup_session(parser, sid=1):
+
+    return
+
+
+# lookup the right exits with the given fields (O(n))
+def lookup_exits(parser, data, filter='s'):
+    filter_to_index = {
+        's': [2],
+        'g': [1],
+        'sg': [2,3],
+    }
+    for iterator in (parser.stack.sp,parser.stack.deadsp,1):
+        j = 0
+        for i in filter_to_index[filter]:
+            if parser.stack.data[iterator][-1][i] == data[j]:
+                j+=1
+        if j == len(data):
+            return iterator
+
+    return -1
+
+
+
+
 def cd_down(parser, it, sp, check_exits=True):
     while it < sp - 1: # from start to the bottom of the stack
         it += 1
