@@ -5,6 +5,10 @@ from orderedset import OrderedSet
 from ordereddict import OrderedDict
 
 
+# rule types:
+# 1 - Terminal Supported Rules (TSR): fork, exit(logged)
+# 2 - Context-Dependent Rules (CDR): setsid, setpgid, exit(shadow)
+
 #  rule checkers
 
 class proc:
@@ -33,18 +37,23 @@ def match_fork_adapter(parent=['1','1','1'], child=['1','1','1']):
 #context-dependent check: session with c.s number should exist
 
 def match_setsid(p=proc('1', '1', '1'), c=proc('1', '1', '1'), context_dep=False, data_list=[OrderedSet(), OrderedSet()]):
+    res = ['nop', []]
     if c.s == c.g == c.p:
         if not c.s == p.s:
             data_list[0].add(c.s)
             data_list[1].add(c.s) # group with the same number exists too
-            return ['setsid', [c.p, p.g, p.s]]
+            res = ['setsid', [c.p, p.g, p.s]]
 
     if not context_dep==False:
         if not c.s == p.s and not c.g in data_list[0]:
+            if p.p =='1':
+                print "parsing warning: session not found, trying to reconstruct the exited parent"
+                return ['nop', []]
+
             print "parsing error: session "+str(c.s)+" not found"
             quit()
 
-    return ['nop', []]
+    return res
 
 
 # setpgid is context-dependent rule
@@ -59,6 +68,10 @@ def match_setpgid(p=proc('1', '1', '1'), c=proc('1', '1', '1'), context_dep=Fals
 
     if not context_dep==False:
         if not c.g in data_list[1]:
+            if p.p =='1':
+                print "parsing warning: group not found, trying to reconstruct the exited parent"
+                return ['nop', []]
+
             print "parsing error: group "+str(c.g)+" not exists!"
             quit()
          # else
@@ -114,7 +127,9 @@ class stack:
     def __init__(self):
         self.bp = 0
         self.sp = 0
+        self.deadsp = 0
         self.lr = 0
+
         self.data = list()
 
     def __getitem__(self, item):
@@ -142,6 +157,20 @@ class stack:
 # unwind the bp
     def unwind(self):
         self.bp = self.lr
+
+# delete the exited processes
+    def free_exited(self):
+        self.deadsp = self.sp
+
+    def init_exited(self):
+        if self.deadsp < self.sp:
+            self.deadsp = self.sp
+
+    def push_exited(self, val):
+        self.data.append(val)
+        self.deadsp += 1
+
+
 '''
     def represent(self,  children_from, parent=routines.Node("1 1 1")):
         for i in xrange(children_from, len(parent.data)):
@@ -165,14 +194,19 @@ class machine:
 #
 
 
-def cd_down(parser, it, sp):
+def is_in_ordered(item, data=OrderedSet()):
+    if item in data:
+        return True
+    return False
+
+
+def cd_down(parser, it, sp, check_exits=True):
     while it < sp - 1: # from start to the bottom of the stack
         it += 1
 
         if routines.is_link(parser.stack[it]):
 
             for link in parser.stack[it][1]: # go through the all of 1st children
-
 
                 match_res = cd_patterns_match(parser.stack[it - 1], parser.stack[link - 1][0], [parser.sidset, parser.pgidset])
 
@@ -192,10 +226,37 @@ def cd_down(parser, it, sp):
                     if subres[0] == 'fork':
                         print "CURRENT PARENT IS FOUND"
 
-                        parser.linker[parser.stack.data.index(parser.stack[link-1])] =  [it-1 , parser.stack[it-1].index(node)]
+                        parser.linker[parser.stack.data.index(parser.stack[link-1])] = [it-1, parser.stack[it-1].index(node)]
                         break
 
                     if node == parser.stack[it-1][-1] and subres[0] == 'nop':
+
+# check non-terminal exits there
+                        if check_exits and parser.stack[link][0] == 1: # it is init's child
+                            if not is_in_ordered(parser.stack[link-1][0][2], parser.sidset)\
+                                    and not is_in_ordered(parser.stack[link-1][0][2], parser.sidset):#the worst case: reparented rudiment
+
+                                parser.stack.init_exited() #init the deadstack
+                                parser.stack.push_exited([
+                                    [parser.stack[link-1][0][2], parser.stack[0][0][1], parser.stack[0][0][2]],
+                                    'setsid(' + str(parser.stack[link-1][0][2])+')',
+                                    [parser.stack[link-1][0][2], parser.stack[link-1][0][2], parser.stack[link-1][0][2]]
+                                ]) # add the exited with all trace of syscalls: fork -> setsid -> exit
+
+                                parser.sidset.add(parser.stack[link-1][0][2])
+                                parser.pidset.add(parser.stack[link-1][0][2])
+                                parser.pgidset.add(parser.stack[link-1][0][2])
+                                #match_setpgid(,parser.stack.link)
+                                parser.stack[link-1].insert(0, 'setpgid(0, ' + str(parser.stack[link-1][0][1]) +')')
+                                parser.stack[link-1].insert(0, [parser.stack[link-1][1][0],parser.stack[parser.stack.deadsp-1][-1][1] ,parser.stack[link-1][1][2]])
+                                #parser.linker:
+
+                                parser.linker[parser.stack.data.index(parser.stack[link - 1])] = [parser.stack.deadsp-1,
+                                                                                                  -1]
+                        # attach and ok ...
+                            continue
+# if not found
+
                         print "Parsing error: string is incorrect (troubles with " + str(node) + " and " + str(parser.stack[link-1][0])
                         quit()
 
@@ -213,7 +274,7 @@ def tree_visualize(parser, root, ptree_storage=OrderedDict()):
         for j in xrange(2, len(parser.stack[i])):
             if routines.is_basestring(parser.stack[i][j]):
                 continue
-            right = routines.Node(str(parser.stack[i][j-1])+ "->" + str(parser.stack[i][j]), parent=right)
+            right = routines.Node(str(parser.stack[i][j-1]) + "->" + str(parser.stack[i][j]), parent=right)
             ptree_storage[i].append(right)
 
     return root
@@ -343,4 +404,4 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     print "TEST TREE:"
     routines.log_output(root, "", 1, 0)
 
-parse("1 1 1 [ 2 2 2 [ 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")
+parse("1 1 1 [ 2 3 5 [ ] ]") # 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")
