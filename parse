@@ -36,16 +36,20 @@ def match_fork_adapter(parent=['1','1','1'], child=['1','1','1']):
 
 #context-dependent check: session with c.s number should exist
 
-def match_setsid(p=proc('1', '1', '1'), c=proc('1', '1', '1'), context_dep=False, data_list=[OrderedSet(), OrderedSet()]):
+def match_setsid(p=proc('1', '1', '1'), c=proc('1', '1', '1'), context_dep=False, data_list=[OrderedSet(), OrderedSet()],sg_mesh=OrderedDict()):
     res = ['nop', []]
     if c.s == c.g == c.p:
-        if not c.s == p.s:
+        if not c.s == p.s:  # third condition should be independent inside - parsing error
+            if c.s in data_list[0]:
+                print "Parsing error: duplicated session leader "+str(c.s)
+                exit()
             data_list[0].add(c.s)
             data_list[1].add(c.s) # group with the same number exists too
+            sg_mesh[c.g] = c.s
             res = ['setsid', [c.p, p.g, p.s]]
 
     if not context_dep==False:
-        if not c.s == p.s and not c.g in data_list[0]:
+        if not c.s == p.s and c.g not in data_list[0]:
             if p.p =='1':
                 print "parsing warning: session not found, trying to reconstruct the exited parent"
                 return ['nop', []]
@@ -57,10 +61,20 @@ def match_setsid(p=proc('1', '1', '1'), c=proc('1', '1', '1'), context_dep=False
 
 
 # setpgid is context-dependent rule
-def match_setpgid(p=proc('1', '1', '1'), c=proc('1', '1', '1'), context_dep=False, data_list=[OrderedSet(), OrderedSet()]):
+# групп-лидеры без reparent'а добавляются на восходящем разборе, с reparent'ом - отдельно на нисходящем
+def match_setpgid(p=proc('1', '1', '1'), c=proc('1', '1', '1'), context_dep=False, data_list=[OrderedSet(), OrderedSet()], sg_mesh=OrderedDict()):
     # the most simple case: setpgid(0,0) - set new group and become group leader
     if c.p == c.g and not c.s == c.p:
-        data_list[1].add(c.g)
+        if context_dep==False:
+            if c.p in data_list[1]:
+                print "Parsing error: duplicated group leader " + str(c.p)
+                exit()
+            data_list[1].add(c.g)
+            sg_mesh[c.g]=c.s
+
+        if not c.s==p.s:
+            return ['nop',[]]
+
         return ['setpgid('+ str(c.g) + ', ' + str(c.g)+')', [c.p, p.g, c.s]]
 
     # the another case is more complex and context-dependent: the group should be checked: setpgid(0,pgid) && exists(pgid,pgid,sid)
@@ -88,7 +102,7 @@ def match_setpgid(p=proc('1', '1', '1'), c=proc('1', '1', '1'), context_dep=Fals
 # parent_list: whole process transformation chain
 # lookup_data: context: now list of OrderedSets
 # взять все родительские состояния, жадным поиском с сопоставлением КЗ-правила дополнить ребёнка слева до форка от любого из них
-def cd_patterns_match(parent_list=[['1','1','1']], child=['2','1','1'], lookup_data=[]):
+def cd_patterns_match(parent_list=[['1','1','1']], child=['2','1','1'], lookup_data=[], sg_mesh=OrderedDict()):
 
     for parent in parent_list:
         print 'cd_match:' + str(parent) + ' ' + str(child)
@@ -98,19 +112,19 @@ def cd_patterns_match(parent_list=[['1','1','1']], child=['2','1','1'], lookup_d
         c = proc(child[0], child[1], child[2])
         proc_rules_list = [match_setsid, match_setpgid]
         for i, func in enumerate(proc_rules_list):
-            subres = func(p, c, True, lookup_data)
+            subres = func(p, c, True, lookup_data, sg_mesh)
             if subres[0] != 'nop':
                 return subres
 
     return ['nop', []]
 
 #  context-free patterns match
-def cf_patterns_match(parent=['1','1','1'], child=['2','1','1'], lookup_data=[] ):
+def cf_patterns_match(parent=['1','1','1'], child=['2','1','1'], lookup_data=[],sg_mesh=OrderedDict()):
     p = proc(parent[0], parent[1], parent[2])
     c = proc(child[0], child[1], child[2])
     proc_rules_list = [match_setsid, match_setpgid]
     for i, func in enumerate(proc_rules_list):
-        if func(p, c, False, lookup_data)[0] != 'nop':
+        if func(p, c, False, lookup_data, sg_mesh)[0] != 'nop':
             return func(p, c)
 
     return ['nop', []]
@@ -190,6 +204,7 @@ class machine:
         self.sidset = OrderedSet()
         self.pgidset = OrderedSet()
         self.linker = OrderedDict() # link the nodes: key (stack index) : [parent stack index, index of parent's state]
+        self.sg_mesh =OrderedDict()
 
 #
 
@@ -252,7 +267,7 @@ def cd_down(parser, it, sp, check_exits=True):
 
             for link in parser.stack[it][1]: # go through the all of 1st children
 
-                match_res = cd_patterns_match(parser.stack[it - 1], parser.stack[link - 1][0], [parser.sidset, parser.pgidset])
+                match_res = cd_patterns_match(parser.stack[it - 1], parser.stack[link - 1][0], [parser.sidset, parser.pgidset],parser.sg_mesh)
 
                 if not match_res[0] == 'nop':
                     # apply the matched pattern: left side of rule reconstruction
@@ -283,8 +298,60 @@ def cd_down(parser, it, sp, check_exits=True):
 #############################################################################################################################
 
                         if check_exits and parser.stack[link][0] == 1: # it is init's child
-                            if not is_in_ordered(parser.stack[link-1][0][2], parser.sidset)\
-                                    and not is_in_ordered(parser.stack[link-1][0][2], parser.sidset):#the worst case: reparented rudiment
+
+                            if is_in_ordered(parser.stack[link-1][0][2], parser.sidset):
+                                # фильтр конструируется следующим образом: если не нашлось 'sg', отдаётся 's'
+                                suitable_proc_index = lookup_exits(parser,parser.stack[link-1][0][2], 'sg')
+                                if suitable_proc_index == -1:
+                                    suitable_proc_index = lookup_exits(parser, parser.stack[link - 1][0][2], 's')
+                                print "Reverse reparenting: suitable exit is found, trying ro reparent " + str(link-1)+" to "+str(suitable_proc_index)
+                                # но ещё нужно проверить группу: если p!=pg и такая группа уже есть в отличной сессии - parsing warning:
+                                # нужна доп. проверка непройденных детей: многие из них могут стать групп-лидерами в той же сессии
+                                # станут - можно будет сделать реверсный реперент, не станут  - нельзя
+                                # поэтому реализуем логику с картинки
+                                # if !sg_mesh[g]
+                                # !!! Логика нижележащей строки уже покрыта восходящим разбором: сессию добавляет только её лидер
+                                # !!! for lookup in laydown_init_children:
+                                # !!! if g==p && g.s == S(p) -> ok;
+                                # аналогично если нет exit, но там аттач к подходящему в нужной сессии
+                                # правильность сессии обеспечивает то что setsid можно сделать только 1 раз
+
+                                # разворачивание в стеке не аффектит данные о сессиях и группах, поэтому можно добавить(если что - для отладки)
+                                # на данном шаге нас интересует только терминальное состояние ребёнка, которому восстанавливаем родителя:
+                                # остальное - проверить и решить, нужен ли setpgid
+                                if not (parser.stack[link-1][-1][1] == parser.stack[suitable_proc_index][-1][1]):
+                                    parser.stack[link - 1].insert(0,'setpgid(0, ' + str(parser.stack[link - 1][0][1]) +')')
+                                    parser.stack[link - 1].insert(0, [parser.stack[link - 1][1][0],
+                                                                  parser.stack[suitable_proc_index][-1][1],
+                                                                  parser.stack[link - 1][1][2]])
+
+                                # проверка группы:
+                                if not (parser.stack[link - 1][-1][0] == parser.stack[link - 1][-1][1]): # examine the group: g != p --> check the group
+
+                                    if int(parser.stack[link-1][-1][1]) in parser.sg_mesh.keys(): # the group exists
+                                        # wrong session checking:
+                                        if not parser.sg_mesh[int(parser.stack[link - 1][-1][1])] == int(parser.stack[suitable_proc_index][-1][2]) or not \
+                                        (parser.stack[link-1][-1][2] == parser.stack[suitable_proc_index][-1][2]):
+                                            print "Parsing error: setpgid to exising group in different session" + str(suitable_proc_index)
+                                            exit()
+
+                                        # the session is right
+                                    else: #group not exists - error
+                                        print "Parsing error: group not exists "+ parser.stack[link-1][-1][1]
+                                        exit()
+
+                                # maybe else is redundant - on upward %)
+                                # link construction
+                                # ______________________________________
+                                parser.linker[link - 1] = [
+                                     suitable_proc_index, -1]  # link child to the exited process
+                                parser.stack[link][0] = parser.stack.deadsp
+                                # ______________________________________
+                                # parser.linker:
+                                # присоединить к нему, с проверкой принадлежности к сессии.[через sg_mesh]
+                                pass
+                            else: # no session:
+#                                    and not is_in_ordered(parser.stack[link-1][0][2], parser.sidset):#the worst case: reparented rudiment
 
                                 parser.stack.init_exited() #init the deadstack
                                 parser.stack.push_exited([
@@ -297,6 +364,8 @@ def cd_down(parser, it, sp, check_exits=True):
                                 parser.sidset.add(parser.stack[link-1][0][2])
                                 parser.pidset.add(parser.stack[link-1][0][2])
                                 parser.pgidset.add(parser.stack[link-1][0][2])
+                                parser.sg_mesh[parser.stack[link-1][0][2]]=parser.stack[link-1][0][2]
+
                                 #match_setpgid(,parser.stack.link)
                                 parser.stack[link-1].insert(0, 'setpgid(0, ' + str(parser.stack[link-1][0][1]) +')')
                                 parser.stack[link-1].insert(0, [parser.stack[link-1][1][0], parser.stack[parser.stack.deadsp-1][-1][1] ,parser.stack[link-1][1][2]])
@@ -408,7 +477,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
                         parser.stack[parser.stack.bp][1].append(it+1)
                         # log info:
                         print "match " + str(parser.stack[parser.stack.bp-1][inner_it])+" and "+str(parser.stack[it][inner_it])
-                        match_res = cf_patterns_match(parser.stack[parser.stack.bp-1][inner_it], parser.stack[it][inner_it], [parser.sidset, parser.pgidset])
+                        match_res = cf_patterns_match(parser.stack[parser.stack.bp-1][inner_it], parser.stack[it][inner_it], [parser.sidset, parser.pgidset],parser.sg_mesh)
                         # insert the reconstructed part into the stack on the current child position (left-side)
 
                         if not match_res[0] == 'nop':
@@ -441,21 +510,26 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     print "Context-dependent part"
 
     ptree_root = routines.Node(str(parser.stack[0][0]), parser.stack[0][0][0], parser.stack[0][0][1], parser.stack[0][0][2])
+
     parser.sidset.add(parser.stack[0][0][2])
     parser.pgidset.add(parser.stack[0][0][1])
+    parser.sg_mesh[parser.stack[0][0][1]] = parser.stack[0][0][2]
+
     cd_down(parser, 0, parser.stack.sp)
     routines.log_output(ptree_root, "", 1, 0)
     print parser.linker
     # post-print of stack:
     for i in xrange(0, len(parser.stack.data)):
         print str(i) + ": " + str(parser.stack.data[i])
+
+    print parser.pgidset
     print "STREE_VISUALIZE(): "
     root = routines.Node("['1','1','1']", parent=None)
 
     ptree_tmp = OrderedDict()
     ptree_tmp[0] = [root]
-    res = tree_visualize(parser, root, ptree_tmp)
-    print "TEST TREE:"
-    routines.log_output(root, "", 1, 0)
+#    res = tree_visualize(parser, root, ptree_tmp)
+#    print "TEST TREE:"
+#    routines.log_output(root, "", 1, 0)
 
-parse("1 1 1 [ 11 1 1 [ 13 1 1 [ ] ] 2 3 5 [ ] ]") # 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")
+parse("1 1 1 [ 11 1 1 [ 13 1 1 [ ] ] 2 2 5 [ ] ]") # 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")
