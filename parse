@@ -1,5 +1,6 @@
 # coding=utf-8
 import sys
+import random
 import routines
 from orderedset import OrderedSet
 from ordereddict import OrderedDict
@@ -214,10 +215,38 @@ def is_in_ordered(item, data=OrderedSet()):
         return True
     return False
 
+#ищет процесс, возвращает индекс множества его состояний в стеке # dfs
+def recursive_lookup(parser, begin, end, ret, data=[1], fields=[2], strict=True):
+    if begin > end:
+        return
+
+#    if (begin == end):
+#        return end
+    #process examining:
+    for node in parser.stack[begin-1]:  # go through the states of parent
+        if routines.is_basestring(node):
+            continue
+        j=0
+        for i in fields:
+            if node[i] == data[j]:
+                if not strict == True:
+                    ret = begin
+            j+=1
+        if not strict == True and ret != -1:
+            return ret
+
+        # if strict exam:
+        if j == len(data):
+            return begin
+
+    for i in parser.stack[begin][1]:
+        return recursive_lookup(parser,i,end, ret,data,fields,strict)
+
+
 
 # dfs search of the given fields (O(log(N)):
 # the index of
-def lookup_proc(parser, data=[1], filter='s', strict=True):
+def lookup_proc(parser, data=[1], filter='s', strict=True, recursive=True):
     res = -1
     iterator = 1
     filter_to_index = {
@@ -229,6 +258,8 @@ def lookup_proc(parser, data=[1], filter='s', strict=True):
         'pgs':[0,1,2]
     }
 # non-trivial lookup usually starts from process different from INIT
+    if recursive:
+        pass
     while iterator <= parser.stack.deadsp:
         pass
     return res
@@ -256,7 +287,8 @@ def lookup_exits(parser, data, filter='s', strict=True):
 
     return res
 
-
+def pick_random_pid(parser):
+    return random.choice([x for x in range(2^16-1) if x not in parser.pidset])
 
 
 def cd_down(parser, it, sp, check_exits=True):
@@ -299,11 +331,25 @@ def cd_down(parser, it, sp, check_exits=True):
 
                         if check_exits and parser.stack[link][0] == 1: # it is init's child
 
-                            if is_in_ordered(parser.stack[link-1][0][2], parser.sidset):
+                            if is_in_ordered(parser.stack[link-1][0][2], parser.sidset): #SESSION EXISTS
                                 # фильтр конструируется следующим образом: если не нашлось 'sg', отдаётся 's'
                                 suitable_proc_index = lookup_exits(parser,parser.stack[link-1][0][2], 'sg')
                                 if suitable_proc_index == -1:
                                     suitable_proc_index = lookup_exits(parser, parser.stack[link - 1][0][2], 's')
+                                if suitable_proc_index == -1: # there are no exited proc in this session, but session exists
+                #1) find sg or s place to match the exited proc
+                                    suitable_proc_index = lookup_proc(parser, [parser.stack[link-1][0][2],parser.stack[link-1][0][1]],"sg")
+                                    if suitable_proc_index == -1:
+                                        suitable_proc_index = lookup_proc(parser, [parser.stack[link - 1][0][2],parser.stack[link - 1][0][1]], "s")
+                                        new_pid = pick_random_pid(parser)
+                                        parser.stack.push_exited([[new_pid, parser.stack[suitable_proc_index][0][1],
+                                             parser.stack[suitable_proc_index][0][2]]])
+
+                                    #2) add new exited proc and attach it to this place:
+
+
+
+
                                 print "Reverse reparenting: suitable exit is found, trying ro reparent " + str(link-1)+" to "+str(suitable_proc_index)
                                 # но ещё нужно проверить группу: если p!=pg и такая группа уже есть в отличной сессии - parsing warning:
                                 # нужна доп. проверка непройденных детей: многие из них могут стать групп-лидерами в той же сессии
@@ -321,6 +367,7 @@ def cd_down(parser, it, sp, check_exits=True):
                                 # остальное - проверить и решить, нужен ли setpgid
                                 if not (parser.stack[link-1][-1][1] == parser.stack[suitable_proc_index][-1][1]):
                                     parser.stack[link - 1].insert(0,'setpgid(0, ' + str(parser.stack[link - 1][0][1]) +')')
+
                                     parser.stack[link - 1].insert(0, [parser.stack[link - 1][1][0],
                                                                   parser.stack[suitable_proc_index][-1][1],
                                                                   parser.stack[link - 1][1][2]])
@@ -402,6 +449,14 @@ def tree_visualize(parser, root, ptree_storage=OrderedDict()):
 
     return root
 
+# 'parse' input should be normalized
+def normalize(s="1 1 1[]"):
+    for i in xrange(1, len(str)-1):
+        if (s[i] =='[' or s[i] ==']') and not s[i+1] == ' ':
+            s = s[:i]+' '+s[i:]
+        if (s[i] =='[' or s[i] ==']') and not s[i-1] == ' ':
+            s = s[:i-1]+' '+s[i-1:]
+    return str
 # parser is a left context-free parser with context-dependent post-check (In compiler-like SA manner).
 # 1) context-free upwarding until ']' with non-empty stack. Then trusted (context-free) downwarding on stackframe with reconstruction.
 # 2) after the whole string is ended - full untrusted (context-dependent) process check.
