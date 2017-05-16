@@ -2,6 +2,7 @@
 import sys
 import random
 import routines
+import copy
 from orderedset import OrderedSet
 from ordereddict import OrderedDict
 
@@ -243,26 +244,46 @@ def recursive_lookup(parser, begin, end, ret, data=[1], fields=[2], strict=True)
             return begin
 
     for i in parser.stack[begin][1]:
-        return recursive_lookup(parser,i,end, ret,data,fields,strict)
+        return recursive_lookup(parser, i, end, ret, data, fields, strict)
 
-
+def gen_index(filter='s'):
+    '''
+    filter_to_index = {
+        's': [2],
+        'g': [1],
+        'p': [0],
+        'gp': [1, 0],
+        'sg': [2, 1],
+        'pgs': [0, 1, 2]
+    }
+    '''
+    # naive implementation
+    if filter == 's':
+        return [2]
+    if filter == 'g':
+        return [1]
+    if filter == 'p':
+        return [0]
+    if filter == 'gp':
+        return [1, 0]
+    if filter == 'sg':
+        return [2, 1]
+    if filter == 'pgs':
+        return [0, 1, 2]
+    # else
+    return []
 
 # dfs search of the given fields (O(log(N)):
 # the index of
-def lookup_proc(parser, data=[1], filter='s', strict=True, recursive=True):
-    res = -1
+def lookup_proc(parser, data=[1], filter='s', res=[-1], strict=True, recursive=True):
+
     iterator = 1
-    filter_to_index = {
-        's':[2],
-        'g':[1],
-        'p':[0],
-        'gp':[1,0],
-        'sg':[2,1],
-        'pgs':[0,1,2]
-    }
+
 # non-trivial lookup usually starts from process different from INIT
     if recursive:
-        pass
+        recursive_lookup(parser, 1, parser.stack.deadsp, res, data, gen_index(filter), strict)
+        return res
+
     while iterator <= parser.stack.deadsp:
         pass
     return res
@@ -284,7 +305,7 @@ def lookup_exits(parser, data, filter='s', strict=True):
                 if not strict == True:
                     res = iterator
 
-                j+=1
+                j += 1
         if j == len(data):
             return iterator
 
@@ -339,19 +360,19 @@ def cd_down(parser, it, sp, check_exits=True):
                                 suitable_proc_index = lookup_exits(parser,parser.stack[link-1][0][2], 'sg')
                                 if suitable_proc_index == -1:
                                     suitable_proc_index = lookup_exits(parser, parser.stack[link - 1][0][2], 's')
-                                if suitable_proc_index == -1: # there are no exited proc in this session, but session exists
-                #1) find sg or s place to match the exited proc
-                                    suitable_proc_index = lookup_proc(parser, [parser.stack[link-1][0][2],parser.stack[link-1][0][1]],"sg")
+                                if suitable_proc_index == -1: # there are no exited processes in this session, but session exists
+#1) find sg or s place to match the exited proc;
+# lookup_proc is restricted wrapper of 'recursive_lookup' DFS-routine
+# suitable_proc_index should be traced through the tree by DFS
+
+                                    suitable_proc_index = lookup_proc(parser, [parser.stack[link-1][0][2], parser.stack[link-1][0][1]], "sg")
                                     if suitable_proc_index == -1:
                                         suitable_proc_index = lookup_proc(parser, [parser.stack[link - 1][0][2],parser.stack[link - 1][0][1]], "s")
                                         new_pid = pick_random_pid(parser)
                                         parser.stack.push_exited([[new_pid, parser.stack[suitable_proc_index][0][1],
                                              parser.stack[suitable_proc_index][0][2]]])
 
-                                    #2) add new exited proc and attach it to this place:
-
-
-
+#2) add new exited proc and attach it to this place:
 
                                 print "Reverse reparenting: suitable exit is found, trying ro reparent " + str(link-1)+" to "+str(suitable_proc_index)
                                 # но ещё нужно проверить группу: если p!=pg и такая группа уже есть в отличной сессии - parsing warning:
@@ -480,9 +501,9 @@ def parse(argst="100 101 102 [ ]", optimized=False):
             parser.stack.push([[line[num], line[num+1], line[num+2]]])
 
             # 'X'-suffix: the process is dead ('exit' syscall was executed)
-            if line[num+3]=='X':
+            if line[num+3] == 'X':
                 parser.stack[-1][-1].append('DEAD')
-                num +=1
+                num += 1
             num += 3
 
             try:
@@ -499,9 +520,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
                 parser.state = 'call'
                 parser.stack.push([parser.stack.bp])
                 parser.stack[-1].append([])
-#                print "bp_old" + str(parser.stack.bp)
-#                print "bp_new" + str(parser.stack.sp - 1)
-#                print parser.stack.data
+
                 parser.stack.bp = parser.stack.sp - 1
 
         elif line[num] == ']':
@@ -590,7 +609,11 @@ def parse(argst="100 101 102 [ ]", optimized=False):
 #    print "TEST TREE:"
 #    routines.log_output(root, "", 1, 0)
     dfs_result = [-1]
-    recursive_lookup(parser, 1, parser.stack.deadsp, dfs_result, ['13','1','1'], [0, 1, 2])
+#   recursive_lookup(parser, 1, parser.stack.deadsp, dfs_result, ['13','1','1'], [0, 1, 2])
+    #(parser, data = [1], filter = 's', res = [-1](parser, data=[1], filter='s', res=[-1]
+    dfs_result = lookup_proc(parser, [5, 2] , "sg", dfs_result)
     print "dfs_test:"
     print dfs_result
+
 parse("1 1 1 [ 11 1 1 [ 13 1 1 [ ] ] 2 2 5 [ ] ]") # 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")
+
