@@ -174,7 +174,7 @@ class stack:
     def unwind(self):
         self.bp = self.lr
 
-# delete the exited processes
+# delete all of the exited processes
     def free_exited(self):
         self.deadsp = self.sp
 
@@ -248,8 +248,7 @@ def recursive_lookup(parser, begin, end, ret, data=[1], fields=[2], strict=True)
 
     for i in parser.stack[begin][1]:
         ret[0] = recursive_lookup(parser, i, end, ret, data, fields, strict)
-        if not ret[0] == -1:
-            print "DBG: ret = " + str(ret)
+
     return ret[0]
 
 def gen_index(filter='s'):
@@ -370,10 +369,10 @@ def cd_down(parser, it, sp, check_exits=True):
 #1) find sg or s place to match the exited proc;
 # lookup_proc is restricted wrapper of 'recursive_lookup' DFS-routine
 # suitable_proc_index should be traced through the tree by DFS
-
-                                    suitable_proc_index = lookup_proc(parser, [parser.stack[link-1][0][2], parser.stack[link-1][0][1]], "sg")
+                                    suitable_proc_index_list = [-1]
+                                    lookup_proc(parser, [parser.stack[link-1][0][2], parser.stack[link-1][0][1]], "sg", suitable_proc_index_list)
                                     if suitable_proc_index == -1:
-                                        suitable_proc_index = lookup_proc(parser, [parser.stack[link - 1][0][2],parser.stack[link - 1][0][1]], "s")
+                                        lookup_proc(parser, [parser.stack[link - 1][0][2], parser.stack[link - 1][0][1]], "s", suitable_proc_index_list)
                                         new_pid = pick_random_pid(parser)
                                         parser.stack.push_exited([[new_pid, parser.stack[suitable_proc_index][0][1],
                                              parser.stack[suitable_proc_index][0][2]]])
@@ -617,9 +616,11 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     dfs_result = [-1]
 #   recursive_lookup(parser, 1, parser.stack.deadsp, dfs_result, ['13','1','1'], [0, 1, 2])
     #(parser, data = [1], filter = 's', res = [-1](parser, data=[1], filter='s', res=[-1]
-    lookup_proc(parser, ['5', '5'] , "sg", dfs_result)
-    print "dfs_test:"
-    print dfs_result
+    #lookup_proc(parser, ['5', '5'] , "sg", dfs_result)
+    #print "dfs_test:"
+    #print dfs_result
 
-parse("1 1 1 [ 11 1 1 [ 13 1 1 [ ] ] 2 2 5 [ ] ]") # 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")
+parse("1 1 1 [ 5 4 3 [ ] 3 3 3 [ 4 4 3 [ ] ] ]")
+      #"1 1 1 [ 6 5 5 [ ] 8 6 5 [ ] ]")
+      #"1 1 1 [ 11 1 1 [ 13 1 1 [ ] ] 2 2 5 [ ] ]") # 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")
 
