@@ -229,12 +229,15 @@ def recursive_lookup(parser, begin, end, ret, data=[1], fields=[2], strict=True)
     for node in parser.stack[begin-1]:  # go through the states of parent
         if routines.is_basestring(node):
             continue
-        j=0
+        print "I AM " + str(node)
+
+        j = 0
         for i in fields:
             if node[i] == data[j]:
                 if not strict == True:
                     ret[0] = begin
-            j+=1
+                j += 1
+
         if not strict == True and ret[0] != -1:
             return ret[0]
 
@@ -244,7 +247,10 @@ def recursive_lookup(parser, begin, end, ret, data=[1], fields=[2], strict=True)
             return begin
 
     for i in parser.stack[begin][1]:
-        return recursive_lookup(parser, i, end, ret, data, fields, strict)
+        ret[0] = recursive_lookup(parser, i, end, ret, data, fields, strict)
+        if not ret[0] == -1:
+            print "DBG: ret = " + str(ret)
+    return ret[0]
 
 def gen_index(filter='s'):
     '''
@@ -611,7 +617,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     dfs_result = [-1]
 #   recursive_lookup(parser, 1, parser.stack.deadsp, dfs_result, ['13','1','1'], [0, 1, 2])
     #(parser, data = [1], filter = 's', res = [-1](parser, data=[1], filter='s', res=[-1]
-    dfs_result = lookup_proc(parser, [5, 2] , "sg", dfs_result)
+    lookup_proc(parser, ['5', '5'] , "sg", dfs_result)
     print "dfs_test:"
     print dfs_result
 
