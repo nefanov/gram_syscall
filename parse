@@ -619,6 +619,8 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     # post-print of stack:
     print "\n\nIntermediate representation:"
     for i in xrange(0, len(parser.stack.data)):
+        if i == parser.stack.sp  :
+            print "Exited:"
         print str(i) + ": " + str(parser.stack.data[i])
 
     print parser.pgidset
