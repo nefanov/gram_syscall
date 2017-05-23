@@ -302,7 +302,7 @@ def lookup_exits(parser, data, filter='s', strict=True):
     filter_to_index = {
         's': [2],
         'g': [1],
-        'sg': [2, 3],
+        'sg': [2, 1],
     }
     if parser.stack.sp >= parser.stack.deadsp:
         print "LOG Warning: lookup_exits: deadstack empty or is not inited!"
@@ -322,17 +322,18 @@ def lookup_exits(parser, data, filter='s', strict=True):
 
     return res
 
+
 def pick_random_pid(parser):
-    return random.choice([x for x in range(2^16-1) if x not in parser.pidset])
+    return random.choice([x for x in range(2 ^ 16 - 1) if x not in parser.pidset])
 
 
 def cd_down(parser, it, sp, check_exits=True):
-    while it < sp - 1: # from start to the bottom of the stack
+    while it < sp - 1:  # from start to the bottom of the stack
         it += 1
 
         if routines.is_link(parser.stack[it]):
 
-            for link in parser.stack[it][1]: # go through the all of 1st children
+            for link in parser.stack[it][1]:  # go through the all of 1st children
 
                 match_res = cd_patterns_match(parser.stack[it - 1], parser.stack[link - 1][0], [parser.sidset, parser.pgidset],parser.sg_mesh)
 
@@ -397,8 +398,15 @@ def cd_down(parser, it, sp, check_exits=True):
     #2) attach the child to this place:
 
                                 print "Reverse reparenting LOG: suitable exit is found, trying ro reparent " + str(link-1) + " to " + str(suitable_proc_index)
-        # reduce the linked (to do), then:
+        # reduce the linked:
+                                if len(parser.stack.data[link-1]) > 2:
+                                    # reduction
+                                    parser.stack[list-1] = list(filter(lambda x: parser.stack[list-1].index(x) in [len(parser.stack[list-1])-1], parser.stack[list-1]))
+                                #  then:
         # lets try to attach left-side state of child: a) if-not: setpgid
+                                if suitable_proc_index_list[0]==-1:
+                                    suitable_proc_index_list[0] = suitable_proc_index
+
                                 if not (parser.stack[link-1][0][1] == parser.stack[suitable_proc_index_list[0]-1][-1][1]):
                                     parser.stack[link - 1].insert(0, 'setpgid(0, ' + str(parser.stack[link - 1][0][1]) +')')
 
@@ -609,6 +617,7 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     routines.log_output(ptree_root, "", 1, 0)
     print parser.linker
     # post-print of stack:
+    print "\n\nIntermediate representation:"
     for i in xrange(0, len(parser.stack.data)):
         print str(i) + ": " + str(parser.stack.data[i])
 
@@ -629,6 +638,4 @@ def parse(argst="100 101 102 [ ]", optimized=False):
     #print dfs_result
 
 parse("1 1 1 [ 5 4 3 [ ] 3 3 3 [ 4 4 3 [ ] 9 3 3 [ ] ] ]")
-      #"1 1 1 [ 6 5 5 [ ] 8 6 5 [ ] ]")
-      #"1 1 1 [ 11 1 1 [ 13 1 1 [ ] ] 2 2 5 [ ] ]") # 3 3 2 [ 6 2 2 [ 7 3 2 [ ] ] ] ] 5 5 5 [ 10 5 1 [ ] ] ]")  # 6 6 5 [ ] ]")  # 6 6 5 [ ] ]")
 
