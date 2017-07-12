@@ -67,7 +67,7 @@ def log_output(log, f_name, is_full=1, is_debug=1, opt=0, f=None):
 
         else:
             if not opt:
-                f = open(f_name, 'w')
+                f = open(f_name, 'a+')
             for pre, fill, node in RenderTree(log):
                 print("%s%s" % (pre, node.name))
                 zz = "%s%s" % (pre, node.name)
