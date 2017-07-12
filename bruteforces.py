@@ -44,6 +44,7 @@ def perm(r, rls, argv, is_log=0, log_tree=None, max_proc_num=rules.PROC_LIMIT, f
 
             if is_log and fd:
                 log_tree = routines.Node([rule, '('+','.join([str(x) for x in argv[rn]])+')', routines.construct(r)], parent=log_tree)
+                routines.log_output(log_tree, fd)
 
             routines.log_output(r, "", 1, 0)
             perm(r, rls, [[argv_ret]], is_log, log_tree, max_proc_num, fd)
@@ -58,7 +59,7 @@ def brute_fork(r=routines.Node("|1 1 1;", 1, 1, 1), ns_last_pid=1, is_log=1, log
 
     routines.dfs(r, routines.worker_list_nodes, routines.worker_empty, [], lst) # lst - list of crafted pointers ptr
     sys.setrecursionlimit(1000000)
-    perm(r, ["fork"], [[ns_last_pid]], is_log, log_tree, proc_limit)
+    perm(r, ["fork"], [[ns_last_pid]], is_log, log_tree, proc_limit, "lg1.txt")
 
 #    routines.log_output(log_tree, "log_tree.txt")
 

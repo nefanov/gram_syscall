@@ -47,7 +47,7 @@ def match_setsid(p=proc('1', '1', '1'), c=proc('1', '1', '1'), context_dep=False
                 exit()
             data_list[0].add(c.s)
             data_list[1].add(c.s) # group with the same number exists too
-            sg_mesh[c.g] = c.s
+            sg_mesh[c.s] = c.g
             res = ['setsid', [c.p, p.g, p.s]]
 
     if not context_dep == False:
@@ -310,6 +310,8 @@ def lookup_exits(parser, data, filter='s', strict=True):
 
     for iterator in (parser.stack.sp, parser.stack.deadsp-1, 1):
         j = 0
+        if routines.is_link(parser.stack[iterator]):
+            continue
 
         for i in filter_to_index[filter]:
             if parser.stack.data[iterator][-1][i] == data[j]:
@@ -324,7 +326,7 @@ def lookup_exits(parser, data, filter='s', strict=True):
 
 
 def pick_random_pid(parser):
-    return random.choice([x for x in range(2 ^ 16 - 1) if x not in parser.pidset])
+    return random.choice([x for x in range(2 ^ 16 - 1) if x not in parser.pidset and x not in xrange(0, 1)])
 
 
 def cd_down(parser, it, sp, check_exits=True):
@@ -357,19 +359,16 @@ def cd_down(parser, it, sp, check_exits=True):
                         break
 
                     if node == parser.stack[it-1][-1] and subres[0] == 'nop':
-##############присоединить не удалось - try exited!###########################################
-
-# check non-terminal exits there #############################################################
+##############try exited!###########################################
 
                         if check_exits and parser.stack[link][0] == 1: # it is init's child
-#1) SESSION EXISTS
+#HEURISTIC #1) SESSION EXISTS
                             if is_in_ordered(parser.stack[link-1][0][2], parser.sidset): #IF SESSION EXISTS
-                                # фильтр конструируется следующим образом: если не нашлось 'sg', отдаётся 's'
-                                # таким образом, если exited не единственный, мы ищем наиболее подходящий, чтобы не делать setpgid ребёнку
                                 parser.stack.init_exited() # init the deadstack if need (safe)
                                 suitable_proc_index = lookup_exits(parser, [parser.stack[link-1][0][2], parser.stack[link-1][0][1]], 'sg') # check session and group
                                 if suitable_proc_index == -1:
                                     suitable_proc_index = lookup_exits(parser, parser.stack[link - 1][0][2], 's') # check session only
+                                suitable_proc_index_list = [-1] # prepare the list of indexes
                                 if suitable_proc_index == -1: # there are no exited processes in this session, but session exists:
 #1.1: Exeption: (there are no exited in this session)
 # disclaimer: lets construct exited in this session:
@@ -377,7 +376,7 @@ def cd_down(parser, it, sp, check_exits=True):
 
         ## lookup_proc is restricted wrapper of 'recursive_lookup' DFS-routine
         ## suitable_proc_index should be traced through the tree by DFS
-                                    suitable_proc_index_list = [-1]
+
                                     lookup_proc(parser, [parser.stack[link-1][0][2], parser.stack[link-1][0][1]], "sg", suitable_proc_index_list)
                                     if suitable_proc_index_list[0] == -1:
                                         lookup_proc(parser, [parser.stack[link - 1][0][2], parser.stack[link - 1][0][1]], "s", suitable_proc_index_list)
@@ -404,7 +403,7 @@ def cd_down(parser, it, sp, check_exits=True):
                                     parser.stack[list-1] = list(filter(lambda x: parser.stack[list-1].index(x) in [len(parser.stack[list-1])-1], parser.stack[list-1]))
                                 #  then:
         # lets try to attach left-side state of child: a) if-not: setpgid
-                                if suitable_proc_index_list[0]==-1:
+                                if suitable_proc_index_list[0] == -1:
                                     suitable_proc_index_list[0] = suitable_proc_index
 
                                 if not (parser.stack[link-1][0][1] == parser.stack[suitable_proc_index_list[0]-1][-1][1]):
@@ -418,8 +417,10 @@ def cd_down(parser, it, sp, check_exits=True):
                                 if not (parser.stack[link - 1][-1][0] == parser.stack[link - 1][-1][1]): # examine the group: g != p --> check the group
                                     if parser.stack[link-1][-1][1] in parser.sg_mesh.keys(): # the group exists
                                         # wrong session checking:
-                                        if not parser.sg_mesh[parser.stack[link - 1][0][1]] == (parser.stack[suitable_proc_index-1][-1][2])\
-                                        or not (parser.stack[link-1][-1][2] == parser.stack[suitable_proc_index-1][-1][2]):
+
+#                                        if not parser.sg_mesh[parser.stack[link - 1][0][1]] == (parser.stack[suitable_proc_index-1][-1][2])\
+                                        #or
+                                        if not (parser.stack[link-1][-1][2] == parser.stack[suitable_proc_index-1][-1][2]):
                                             print "Parsing error: setpgid to existing group in different session " + str(suitable_proc_index)
                                             exit()
                                         # the session is right
@@ -429,13 +430,13 @@ def cd_down(parser, it, sp, check_exits=True):
                                 # maybe else is redundant - on upward %)
     #3) link construction
                                 # ______________________________________
-                                parser.linker[link-1] = [suitable_proc_index, -1]  # link child to the exited process
+                                parser.linker[link-1] = [suitable_proc_index, 0]  # link child to the exited process
                                 parser.stack[link][0] = suitable_proc_index
 
     #                            parser.linker[] = [parser.stack.deadsp - 1, -1]  # link child to the exited process
     #                            parser.stack[link][0] = parser.stack.deadsp
-
-                                parser.stack[suitable_proc_index_list[0]][1].append(suitable_proc_index)
+                                parser.stack.data[suitable_proc_index][0] = suitable_proc_index_list[0]
+                                parser.stack.data[suitable_proc_index_list[0]][1].append(suitable_proc_index)
 
                                 # ______________________________________
                                 # parser.linker:
@@ -456,7 +457,7 @@ def cd_down(parser, it, sp, check_exits=True):
                                 parser.sidset.add(parser.stack[link-1][0][2])
                                 parser.pidset.add(parser.stack[link-1][0][2])
                                 parser.pgidset.add(parser.stack[link-1][0][2])
-                                parser.sg_mesh[parser.stack[link-1][0][2]]=parser.stack[link-1][0][2]
+                                parser.sg_mesh[parser.stack[link-1][0][2]] = parser.stack[link-1][0][2]
 
                                 #match_setpgid(,parser.stack.link)
                                 parser.stack[link-1].insert(0, 'setpgid(0, ' + str(parser.stack[link-1][0][1]) +')')
@@ -629,15 +630,22 @@ def parse(argst="100 101 102 [ ]", optimized=False):
 
     ptree_tmp = OrderedDict()
     ptree_tmp[0] = [root]
-#    res = tree_visualize(parser, root, ptree_tmp)
+    for i in xrange(parser.stack.sp, parser.stack.deadsp-1,1):
+        if routines.is_link(parser.stack.data[i]):
+            continue
+
+        ptree_tmp[i+1] = [routines.Node(str(parser.stack[i][0]) + "->" + str(parser.stack[i][1]))]
+
+    res = tree_visualize(parser, root, ptree_tmp)
 #    print "TEST TREE:"
-#    routines.log_output(root, "", 1, 0)
+    routines.log_output(root, "", 1, 0)
 #    dfs_result = [-1]
-#   recursive_lookup(parser, 1, parser.stack.deadsp, dfs_result, ['13','1','1'], [0, 1, 2])
+#    recursive_lookup(parser, 1, parser.stack.deadsp, dfs_result, ['13','1','1'], [0, 1, 2])
     #(parser, data = [1], filter = 's', res = [-1](parser, data=[1], filter='s', res=[-1]
     #lookup_proc(parser, ['5', '5'] , "sg", dfs_result)
     #print "dfs_test:"
     #print dfs_result
 
 parse("1 1 1 [ 5 4 3 [ ] 3 3 3 [ 4 4 3 [ ] 9 3 3 [ ] ] ]")
+    #"1 1 1 [ 6 5 5 [ ] 8 6 5 [ ] ]")
 

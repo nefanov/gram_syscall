@@ -72,7 +72,9 @@ def log_output(log, f_name, is_full=1, is_debug=1, opt=0, f=None):
                 print("%s%s" % (pre, node.name))
                 zz = "%s%s" % (pre, node.name)
                 f.write(zz.encode("UTF-8"))
+
             if not opt:
+                f.write("\n")
                 f.close()
     return
 

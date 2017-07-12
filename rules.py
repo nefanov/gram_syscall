@@ -1,6 +1,6 @@
 import routines
 
-PROC_LIMIT = 8#(2**16 - 2)
+PROC_LIMIT = 2**8#(2**16 - 2)
 
 
 def init_repr_node(r, parent):
